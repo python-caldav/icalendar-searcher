@@ -23,3 +23,13 @@ icalendar = {}
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "ruff (>=0.14.5,<0.15.0)"
+]
+
+#[tool.ruff]
+# You can customize rules here, or leave for defaults
+#select = ["E", "F", "W", "C90"]  # example rule sets
+#extend-ignore = ["E501"]         # to ignore line length warnings
