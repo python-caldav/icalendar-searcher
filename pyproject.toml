@@ -30,8 +30,8 @@ build-backend = "poetry.core.masonry.api"
 
 [dependency-groups]
 dev = [
-    "ruff (>=0.14.4,<0.15.0)",
-    "pre-commit (>=4.4.0,<5.0.0)"
+    "ruff",
+    "pre-commit"
 ]
 
 #[tool.ruff]
