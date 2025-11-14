@@ -1,9 +1,16 @@
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
+from typing import Any
 from typing import List
+from typing import TYPE_CHECKING
+from typing import Union
 
 from icalendar.prop import TypesFactory
+
+if TYPE_CHECKING:
+    from icalendar import Calendar
+    from caldav.calendarobjectresource import CalendarObjectResource
 
 @dataclass
 class Searcher:
@@ -77,7 +84,7 @@ class Searcher:
     end: datetime = None
     alarm_start: datetime = None
     alarm_end: datetime = None
-    comp_class: Union["CalendarObjectResource", "Component"] = None
+    comp_class: Union[CalendarObjectResource, Calendar] = None
     include_completed: bool = None
 
     expand: bool = False
@@ -112,7 +119,7 @@ class Searcher:
 
         * def, undef - will match if the property is (not) defined.  value can be set to None, will be ignored.
         """
-        if not operator in ("contains", "undef", "=="):
+        if operator not in ("contains", "undef", "=="):
             raise NotImplementedError(f"The operator {operator} is not supported yet.")
         if operator != "undef":
             self._property_filters[key] = TypesFactory.for_property(key)(value)
@@ -129,14 +136,14 @@ class Searcher:
         assert key in TypesFactory.types_map or key in ("isnt_overdue", "hasnt_started")
         self._sort_keys.append((key, reversed))
 
-    def check_component(self, component: Union["Calendar", "CalendarObjectResource"]) -> Union["Calendar", "CalendarObjectResource"]:
+    def check_component(self, component: Union[Calendar, CalendarObjectResource]) -> Union[Calendar, CalendarObjectResource]:
         """
         Checks if a component (or a recurrence set) matches the filters.
         Expands a recurring component if needed.  Returns the component.
         """
         raise NotImplementedError()
     
-    def filter(self, components: List[Union["Calendar", "CalendarObjectResource"]]) -> List[Union["Calendar", "CalendarObjectResource"]]:
+    def filter(self, components: List[Union[Calendar, CalendarObjectResource]]) -> List[Union[Calendar, CalendarObjectResource]]:
         """
         Filters the components given according to the search
         criterias, and possibly expanding recurrences.
@@ -146,7 +153,7 @@ class Searcher:
         """
         raise NotImplementedError()
 
-    def sort(self, components: List[Union["Calendar", "CalendarObjectResource"]]) -> List[Union["Calendar", "CalendarObjectResource"]]:
+    def sort(self, components: List[Union[Calendar, CalendarObjectResource]]) -> List[Union[Calendar, CalendarObjectResource]]:
         """
         Sorts the components given according to the sort
         keys.
@@ -156,7 +163,7 @@ class Searcher:
         """
         raise NotImplementedError()
 
-    def sort_key(self, component: Union["Calendar", "CalendarObjectResource"]):
+    def sort_key(self, component: Union[Calendar, CalendarObjectResource]):
         """
         Returns a sortable value from the component, based on the sort keys
         """
