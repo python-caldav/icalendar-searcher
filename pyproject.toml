@@ -1,0 +1,25 @@
+[project]
+name = "icalendar-searcher"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Tobias Brox",email = "tobias@redpill-linpro.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13,<4.0"
+dependencies = [
+]
+
+[tool.poetry]
+packages = [{include = "icalendar_searcher", from = "src"}]
+
+[tool.poetry-dynamic-versioning]
+enable = true
+
+[tool.poetry.dependencies]
+poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
+icalendar = {}
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
