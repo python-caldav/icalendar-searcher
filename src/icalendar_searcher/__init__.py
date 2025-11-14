@@ -86,7 +86,7 @@ class Searcher:
     end: datetime = None
     alarm_start: datetime = None
     alarm_end: datetime = None
-    comp_class: Union[CalendarObjectResource, Calendar] = None
+    comp_class: Union["CalendarObjectResource", "Calendar"] = None
     include_completed: bool = None
 
     expand: bool = False
@@ -141,8 +141,8 @@ class Searcher:
         self._sort_keys.append((key, reversed))
 
     def check_component(
-        self, component: Union[Calendar, CalendarObjectResource]
-    ) -> Union[Calendar, CalendarObjectResource]:
+        self, component: Union["Calendar", "CalendarObjectResource"]
+    ) -> Union["Calendar", "CalendarObjectResource"]:
         """
         Checks if a component (or a recurrence set) matches the filters.
         Expands a recurring component if needed.  Returns the component.
@@ -150,8 +150,8 @@ class Searcher:
         raise NotImplementedError()
 
     def filter(
-        self, components: List[Union[Calendar, CalendarObjectResource]]
-    ) -> List[Union[Calendar, CalendarObjectResource]]:
+        self, components: List[Union["Calendar", "CalendarObjectResource"]]
+    ) -> List[Union["Calendar", "CalendarObjectResource"]]:
         """
         Filters the components given according to the search
         criterias, and possibly expanding recurrences.
@@ -162,8 +162,8 @@ class Searcher:
         raise NotImplementedError()
 
     def sort(
-        self, components: List[Union[Calendar, CalendarObjectResource]]
-    ) -> List[Union[Calendar, CalendarObjectResource]]:
+        self, components: List[Union["Calendar", "CalendarObjectResource"]]
+    ) -> List[Union["Calendar", "CalendarObjectResource"]]:
         """
         Sorts the components given according to the sort
         keys.
@@ -173,7 +173,7 @@ class Searcher:
         """
         raise NotImplementedError()
 
-    def sort_key(self, component: Union[Calendar, CalendarObjectResource]):
+    def sort_key(self, component: Union["Calendar", "CalendarObjectResource"]):
         """
         Returns a sortable value from the component, based on the sort keys
         """
