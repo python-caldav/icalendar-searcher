@@ -60,6 +60,14 @@ class Searcher:
     set to true - but since ``expand`` can only be combined with a
     start and end, it's by default set to false.
 
+    For filtering an icalendar instance ``mycal`` containing a
+    VCALENDAR with multiple independent events, one may do
+    ``searcher.filter([mycal])``.  The CalDAV library contains a
+    CalDAVSearcher class inheritating this class and including a
+    ``.search(caldav_calendar)`` method.  The idea is that it may be
+    done in the same way also for searching other calendars or
+    calendar-like systems using other protocols.
+
     The filtering and sorting methods should accept both wrapper
     objects (for the CalDAV library, those are called
     CalendarObjectResource and contains extra information like the URL
@@ -77,6 +85,7 @@ class Searcher:
     calendars (CalDAV-style) - but the algorithms should also be
     robust enough to handle multiple independent components embedded
     in a single Calendar.
+
     """
 
     todo: bool = None
