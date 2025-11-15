@@ -5,21 +5,44 @@ description = ""
 authors = [
     {name = "Tobias Brox",email = "tobias@redpill-linpro.com"}
 ]
-readme = "README.md"
-requires-python = ">=3.13,<4.0"
-dependencies = [
-]
+
+## caldav still supports 3.9, so we would definitively like
+## to support python 3.9 for a while.  However, the precommit
+## logic I just threw in requires me to officially ditch 3.9-support.
+## I guess the caldav tests will still exercise this library with 3.9.
+requires-python = ">=3.10,<4.0"
 
 [tool.poetry]
+name = "icalendar-searcher"
+version = "0.1.0"
+description = "Search, filter and sort iCalendar components"
+authors = ["Tobias Brox <tobias@redpill-linpro.com>"]
+readme = "README.md"
 packages = [{include = "icalendar_searcher", from = "src"}]
 
+[tool.poetry.dependencies]
+icalendar = ">=6.0"
 [tool.poetry-dynamic-versioning]
 enable = true
 
-[tool.poetry.dependencies]
-poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
-icalendar = {}
-
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=2.0.0,<3.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "pre-commit",
+    "pytest (>=9.0.1,<10.0.0)"
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "ANN"]
+ignore = ["E501", "ANN401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["icalendar_searcher"]
