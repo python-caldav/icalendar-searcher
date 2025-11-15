@@ -199,7 +199,7 @@ class Searcher:
         """
         raise NotImplementedError()
 
-    def sort_key(self, component: Union["Calendar", "CalendarObjectResource"]) -> tuple:
+    def sorting_value(self, component: Union["Calendar", "CalendarObjectResource"]) -> tuple:
         """
         Returns a sortable value from the component, based on the sort keys
         """
