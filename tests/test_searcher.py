@@ -1,8 +1,9 @@
 import pytest
+
 from icalendar_searcher import Searcher
 
 
-def test_add_property_filter_undef():
+def test_add_property_filter_undef() -> None:
     """Adding an "undef" property filter should record the operator but
     not attempt to coerce the value through TypesFactory (since value is
     ignored for 'undef')."""
@@ -13,7 +14,7 @@ def test_add_property_filter_undef():
     assert "SUMMARY" not in s._property_filters
 
 
-def test_add_property_filter_contains():
+def test_add_property_filter_contains() -> None:
     """Adding a 'contains' property filter should record the operator
     and coerce the value through TypesFactory."""
     s = Searcher()
@@ -24,14 +25,14 @@ def test_add_property_filter_contains():
     assert "SUMMARY" in s._property_filters
 
 
-def test_add_property_filter_unsupported():
+def test_add_property_filter_unsupported() -> None:
     """Unsupported operators should raise NotImplementedError."""
     s = Searcher()
     with pytest.raises(NotImplementedError):
         s.add_property_filter("SUMMARY", "x", operator="\\o/")
 
 
-def test_add_sort_key_special():
+def test_add_sort_key_special() -> None:
     """Special sort keys such as 'isnt_overdue' should be accepted."""
     s = Searcher()
     s.add_sort_key("isnt_overdue", reversed=True)
