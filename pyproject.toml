@@ -17,6 +17,7 @@ readme = "README.md"
 ## I guess the caldav tests will still exercise this library with 3.9.
 requires-python = ">=3.10,<4.0"
 dependencies = [
+    "icalendar>=6.0.0",
 ]
 
 [tool.poetry]
