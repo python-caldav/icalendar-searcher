@@ -204,13 +204,12 @@ class Searcher:
         Returns a sortable value from the component, based on the sort keys
         """
         ret = []
+        ## TODO: this logic has been moved more or less as-is from the
+
         ## TODO: we disregard any complexity wrg of recurring events
+        component = self._unwrap(component)
 
-        icalendar_instance = component
-
-        not_tz_components = (
-            x for x in icalendar_instance.subcomponents if not isinstance(x, Timezone)
-        )
+        not_tz_components = (x for x in component.subcomponents if not isinstance(x, Timezone))
         comp = next(not_tz_components)
 
         defaults = {
@@ -256,7 +255,7 @@ class Searcher:
 
         return ret
 
-    def _unrwap(self, component: Union["Calendar", "CalendarObjectResource"]) -> "Calendar":
+    def _unwrap(self, component: Union["Calendar", "CalendarObjectResource"]) -> "Calendar":
         """
         To support the caldav library (and possibly other libraries where the
         icalendar component is wrapped)
