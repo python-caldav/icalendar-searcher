@@ -20,6 +20,10 @@ class Searcher:
     * Allow to build up a calendar search query.
     * Help filterering or sorting a list of calendar components
 
+    Primarily VJOURNAL, VTODO and VEVENT Calendar components are
+    intended to be supported, but we should consider if there is any
+    point supporting FREEBUSY as well.
+
     This class is a bit stubbed as of 2025-11, many things not working
     yet.  This class was split out from the CalDAV library and is
     intended for generic search logic not related to the CalDAV
@@ -48,7 +52,10 @@ class Searcher:
     ``start`` and ``end`` is giving a time range.  The CalDAV logic
     will be honored, see RFC4791, section 9.9 for very clear
     definitions of what should be returned and what should be filtered
-    away.
+    away.  Timestamps should ideally be with a time zone, if not given
+    the local time zone will be assumed.  All-day events may be tricky
+    to get correct when timestamps are given and calendar data covers
+    multiple time zones.
 
     ``alarm_start`` and ``alarm_end`` is similar for alarm searching
 
@@ -85,6 +92,10 @@ class Searcher:
     calendars (CalDAV-style) - but the algorithms should also be
     robust enough to handle multiple independent components embedded
     in a single Calendar.
+
+    Other ideas that one may consider implementing:
+    * limit, offset.
+    * fuzzy matching
 
     """
 
@@ -153,8 +164,14 @@ class Searcher:
         self, component: Union["Calendar", "CalendarObjectResource"]
     ) -> Union["Calendar", "CalendarObjectResource"]:
         """
-        Checks if a component (or a recurrence set) matches the filters.
-        Expands a recurring component if needed.  Returns the component.
+        Checks if a component (or recurrence set) matches the filters.  If the component parameter is a calendar containing several independent components, an Exception may be raised.
+
+        * On a match, the component will be returned, otherwise ``None``.
+        * If a time specification is given and the component given is a
+          recurring component, it will be expanded internally to check if
+          it matches the given time specification.
+        * If ``self.expand`` is set, the expanded  recurrence set matching
+          the time specification will be returned.
         """
         raise NotImplementedError()
 
