@@ -5,6 +5,7 @@ description = ""
 authors = [
     {name = "Tobias Brox",email = "tobias@redpill-linpro.com"}
 ]
+requires-python = ">=3.10,<4.0"
 [tool.poetry]
 name = "icalendar-searcher"
 version = "0.1.0"
