@@ -205,6 +205,7 @@ class Searcher:
         """
         ret = []
         ## TODO: this logic has been moved more or less as-is from the
+        ## caldav library.  It may need some rethinking and QA work.
 
         ## TODO: we disregard any complexity wrg of recurring events
         component = self._unwrap(component)
