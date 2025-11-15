@@ -14,9 +14,9 @@ def test_add_property_filter_undef():
 
 
 def test_add_property_filter_contains():
-    """Adding an "undef" property filter should record the operator but
-    not attempt to coerce the value through TypesFactory (since value is
-    ignored for 'undef')."""
+    """Adding a 'contains' property filter should record the operator
+    and coerce the value through TypesFactory."""
+    s = Searcher()
     s = Searcher()
     s.add_property_filter("SUMMARY", "rain", operator="contains")
     assert "SUMMARY" in s._property_operator
