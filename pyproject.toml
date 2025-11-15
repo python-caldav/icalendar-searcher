@@ -5,6 +5,11 @@ description = ""
 authors = [
     {name = "Tobias Brox",email = "tobias@redpill-linpro.com"}
 ]
+[tool.poetry]
+name = "icalendar-searcher"
+version = "0.1.0"
+description = "Search, filter and sort iCalendar components"
+authors = ["Tobias Brox <tobias@redpill-linpro.com>"]
 readme = "README.md"
 ## caldav still supports 3.9, so we would definitively like
 ## to support python 3.9 for a while.  However, the precommit
