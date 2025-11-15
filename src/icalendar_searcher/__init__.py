@@ -1,17 +1,13 @@
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
-from typing import List
-from typing import TYPE_CHECKING
-from typing import Union
+from typing import TYPE_CHECKING, Any, Union
 
+from icalendar import Timezone
 from icalendar.prop import TypesFactory
 
 if TYPE_CHECKING:
-    from icalendar import Calendar
-    from icalendar import Component
     from caldav.calendarobjectresource import CalendarObjectResource
+    from icalendar import Calendar, Component
 
 types_factory = TypesFactory()
 
@@ -40,9 +36,9 @@ class Searcher:
     of them has to match)
 
     Properties (like SUMMARY, CATEGORIES, etc) are not meant to be
-    sent through the constructor, use the ``add_property_filter``
+    sent through the constructor, use the :func:`icalendar_searcher.Searcher.add_property_filter`
     method.  Same goes with sort keys, they can be added through the
-    ``add_sort_key`` method.
+    `func:icalendar_searcher.Searcher.add_sort_key` method.
 
     The ``todo``, ``event`` and ``journal`` parameters are booleans
     for filtering the component type.  If i.e. both todo and
@@ -118,9 +114,7 @@ class Searcher:
     _property_filters: dict = field(default_factory=dict)
     _property_operator: dict = field(default_factory=dict)
 
-    def add_property_filter(
-        self, key: str, value: Any, operator: str = "contains"
-    ) -> None:
+    def add_property_filter(self, key: str, value: Any, operator: str = "contains") -> None:
         """Adds a filter for some specific iCalendar property.
 
         Examples of valid iCalendar properties: SUMMARY,
@@ -182,8 +176,8 @@ class Searcher:
         raise NotImplementedError()
 
     def filter(
-        self, components: List[Union["Calendar", "CalendarObjectResource"]]
-    ) -> List[Union["Calendar", "CalendarObjectResource"]]:
+        self, components: list[Union["Calendar", "CalendarObjectResource"]]
+    ) -> list[Union["Calendar", "CalendarObjectResource"]]:
         """
         Filters the components given according to the search
         criterias, and possibly expanding recurrences.
@@ -194,8 +188,8 @@ class Searcher:
         raise NotImplementedError()
 
     def sort(
-        self, components: List[Union["Calendar", "CalendarObjectResource"]]
-    ) -> List[Union["Calendar", "CalendarObjectResource"]]:
+        self, components: list[Union["Calendar", "CalendarObjectResource"]]
+    ) -> list[Union["Calendar", "CalendarObjectResource"]]:
         """
         Sorts the components given according to the sort
         keys.
@@ -209,4 +203,66 @@ class Searcher:
         """
         Returns a sortable value from the component, based on the sort keys
         """
-        raise NotImplementedError()
+        ret = []
+        ## TODO: we disregard any complexity wrg of recurring events
+
+        icalendar_instance = component
+
+        not_tz_components = (
+            x for x in icalendar_instance.subcomponents if not isinstance(x, Timezone)
+        )
+        comp = next(not_tz_components)
+
+        defaults = {
+            ## TODO: all possible non-string sort attributes needs to be listed here, otherwise we will get type errors when comparing objects with the property defined vs undefined (or maybe we should make an "undefined" object that always will compare below any other type?  Perhaps there exists such an object already?)
+            "due": "2050-01-01",
+            "dtstart": "1970-01-01",
+            "priority": 0,
+            "status": {
+                "VTODO": "NEEDS-ACTION",
+                "VJOURNAL": "FINAL",
+                "VEVENT": "TENTATIVE",
+            }[comp.name],
+            "category": "",
+            ## Usage of strftime is a simple way to ensure there won't be
+            ## problems if comparing dates with timestamps
+            "isnt_overdue": not (
+                "due" in comp
+                and comp["due"].dt.strftime("%F%H%M%S") < datetime.now().strftime("%F%H%M%S")
+            ),
+            "hasnt_started": (
+                "dtstart" in comp
+                and comp["dtstart"].dt.strftime("%F%H%M%S") > datetime.now().strftime("%F%H%M%S")
+            ),
+        }
+        for sort_key, reverse in self._sort_keys:
+            val = comp.get(sort_key, None)
+            if val is None:
+                ret.append(defaults.get(sort_key.lower(), ""))
+                continue
+            if hasattr(val, "dt"):
+                val = val.dt
+            elif hasattr(val, "cats"):
+                val = ",".join(val.cats)
+            if hasattr(val, "strftime"):
+                val = val.strftime("%F%H%M%S")
+            if reverse:
+                if isinstance(val, str):
+                    val = val.encode()
+                    val = bytes(b ^ 0xFF for b in val)
+                else:
+                    val = -val
+            ret.append(val)
+
+        return ret
+
+    def _unrwap(self, component: Union["Calendar", "CalendarObjectResource"]) -> "Calendar":
+        """
+        To support the caldav library (and possibly other libraries where the
+        icalendar component is wrapped)
+        """
+        try:
+            component = component.icalendar_instance
+        except AttributeError:
+            pass
+        return component
