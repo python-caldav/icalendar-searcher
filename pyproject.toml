@@ -15,10 +15,6 @@ readme = "README.md"
 ## to support python 3.9 for a while.  However, the precommit
 ## logic I just threw in requires me to officially ditch 3.9-support.
 ## I guess the caldav tests will still exercise this library with 3.9.
-requires-python = ">=3.10,<4.0"
-dependencies = [
-    "icalendar>=6.0.0",
-]
 packages = [{include = "icalendar_searcher", from = "src"}]
 
 [tool.poetry-dynamic-versioning]
@@ -40,7 +36,7 @@ line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B"]
+select = ["E", "F", "W", "I", "UP", "B", "ANN"]
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]
