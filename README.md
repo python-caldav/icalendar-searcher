@@ -24,6 +24,6 @@ In the early versions, the filter method will take the calendar contents one by 
 
 As for now I'm releasing this under the GNU Affero General Public License v.3.0.  If you find this too restrictive or if this causes license compatibility issues for you, I will consider to fix some dual licensing, like it's done with the python CalDAV library.
 
-This also menas that any contributor has to accept that the code is released under AGPL v3.0 and at some point in the future may be dual-licensed under some more permissive license, like the EUPL v1.1.
+This also means that any contributor has to accept that the code is released under AGPL v3.0 and at some point in the future may be dual-licensed under some more permissive license, like the EUPL v1.1.
 
 I don't have very strong opinions on licenses.  If you have any issues in one way or another, please reach out.
