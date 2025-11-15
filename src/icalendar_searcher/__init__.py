@@ -10,7 +10,10 @@ from icalendar.prop import TypesFactory
 
 if TYPE_CHECKING:
     from icalendar import Calendar
+    from icalendar import Component
     from caldav.calendarobjectresource import CalendarObjectResource
+
+types_factory = TypesFactory()
 
 
 @dataclass
@@ -106,7 +109,7 @@ class Searcher:
     end: datetime = None
     alarm_start: datetime = None
     alarm_end: datetime = None
-    comp_class: Union["CalendarObjectResource", "Calendar"] = None
+    comp_class: Union["CalendarObjectResource", "Component"] = None
     include_completed: bool = None
 
     expand: bool = False
@@ -146,7 +149,7 @@ class Searcher:
         if operator not in ("contains", "undef", "=="):
             raise NotImplementedError(f"The operator {operator} is not supported yet.")
         if operator != "undef":
-            self._property_filters[key] = TypesFactory.for_property(key)(value)
+            self._property_filters[key] = types_factory.for_property(key)(value)
         self._property_operator[key] = operator
 
     def add_sort_key(self, key: str, reversed: bool = None) -> None:
@@ -157,7 +160,10 @@ class Searcher:
 
         Except for that, the sort key should be an icalendar property.
         """
-        assert key in TypesFactory.types_map or key in ("isnt_overdue", "hasnt_started")
+        assert key in types_factory.types_map or key in (
+            "isnt_overdue",
+            "hasnt_started",
+        )
         self._sort_keys.append((key, reversed))
 
     def check_component(
