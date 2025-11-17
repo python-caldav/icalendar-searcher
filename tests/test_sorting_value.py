@@ -4,6 +4,7 @@
 ## it failed to take credits for it as well as providing a pull request
 ## for it.
 
+from collections.abc import Callable
 from datetime import datetime as real_datetime
 
 from icalendar import Calendar, Event, Todo
@@ -60,7 +61,7 @@ def test_sorting_value_status_default_for_component_types() -> None:
         assert vals == [expected]
 
 
-def test_special_sort_keys_isnt_overdue_and_hasnt_started(monkeypatch: type(lambda: None)) -> None:
+def test_special_sort_keys_isnt_overdue_and_hasnt_started(monkeypatch: Callable) -> None:
     """Test the special keys 'isnt_overdue' and 'hasnt_started' by fixing 'now'."""
     # Create a TODO with due in the past and dtstart in the future relative to fake now.
     cal = Calendar()
