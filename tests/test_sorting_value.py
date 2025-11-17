@@ -12,11 +12,20 @@ from icalendar import Calendar, Event, Todo
 import icalendar_searcher
 from icalendar_searcher import Searcher
 
-
-## This is a fragile test - there is no requirement that the values turn out the way they
-## do, the only requiement is that they can be sorted correctly.  I think it would be
-## a good idea to replace this with a test that creates several events and verifies that
-## the sorting_value delivers things that can be sorted in the correct order.
+## TODO: This is a fragile test - there is no requirement that the
+## values turn out the way they do, the only requiement is that they
+## can be sorted correctly.  I think it would be a good idea to
+## replace this with a test that creates several events and verifies
+## that the sorting_value delivers things that can be sorted in the
+## correct order.
+## TODO: Currently we're only testing the passing of an
+## icalendar.Calendar object as the component.  We should also verify
+## that those works:
+##
+## 1) A wrapped Calendar object (i.e. caldav.calendarobjectresource.Event)
+##
+## 2) the icalendar.Event object directly, without being part of an
+## icalendar (this probably breaks now, but it should be acceptable)
 def test_sorting_value_mixed_types_and_reverse() -> None:
     """Check dtstart -> strftime, priority numeric, reversed summary -> bytes-inverted,
     and categories -> joined string."""
@@ -40,7 +49,6 @@ def test_sorting_value_mixed_types_and_reverse() -> None:
     assert vals[1] == 5
     assert vals[2] == bytes(b ^ 0xFF for b in b"abc")
     assert vals[3] == "x,y"
-
 
 def test_sorting_value_status_default_for_component_types() -> None:
     """If STATUS is not set, defaults should be used based on component type."""

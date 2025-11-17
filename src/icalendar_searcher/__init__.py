@@ -1,16 +1,25 @@
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
+from itertools import chain
 from typing import TYPE_CHECKING, Any, Union
 
 from icalendar import Timezone
 from icalendar.prop import TypesFactory
 
+import recurring_ical_events
+
 if TYPE_CHECKING:
     from caldav.calendarobjectresource import CalendarObjectResource
     from icalendar import Calendar, Component
 
+## We need an instance of the icalendar.prop.TypesFactory class.
+## We'll make a global instance rather than instantiate it for
+## every loop ieration
 types_factory = TypesFactory()
 
+## Helper
+def non_empty_generator(g: generator
 
 @dataclass
 class Searcher:
@@ -105,7 +114,6 @@ class Searcher:
     end: datetime = None
     alarm_start: datetime = None
     alarm_end: datetime = None
-    comp_class: Union["CalendarObjectResource", "Component"] = None
     include_completed: bool = None
 
     expand: bool = False
@@ -164,16 +172,80 @@ class Searcher:
         self, component: Union["Calendar", "CalendarObjectResource"]
     ) -> Union["Calendar", "CalendarObjectResource"]:
         """
-        Checks if a component (or recurrence set) matches the filters.  If the component parameter is a calendar containing several independent components, an Exception may be raised.
+        Checks if one component (or recurrence set) matches the filters.  If the component parameter is a calendar containing several independent components, an Exception may be raised.  The 
 
         * On a match, the component will be returned, otherwise ``None``.
         * If a time specification is given and the component given is a
           recurring component, it will be expanded internally to check if
           it matches the given time specification.
-        * If ``self.expand`` is set, the expanded  recurrence set matching
-          the time specification will be returned.
+        * If ``self.expand`` is set and we have a match, the expanded
+          recurrence set matching the time specification is returned.
+          If ``self.expand`` is False, the original component parameter
+          will be returned on a match.
         """
-        raise NotImplementedError()
+        comp = self._unwrap(component)
+        ## Ignore everything except the first non-timezone component
+        ## found ... and it's recurrence set
+        not_tz_components = (
+            x for x in comp.subcomponents
+            if not isinstance(x, Timezone))
+        try:
+            first = next(not_tz_components)
+        except StopIteration:
+            return None
+        recurrence_set = (
+            x for x in comp.subcomponents
+            if not isinstance(x, Timezone) and x['uid'] == first['uid'])
+        ## TODO: we should consider raising a ValueError if there exists
+        ## independent objects in the calendar given
+
+        ## Component type flags are a bit difficult.  In the CalDAV library,
+        ## if all of them are None, everything should be returned.  If only
+        ## one of them is True, then only this kind of component type is
+        ## returned.  In any other case, no guarantees of correctness are given.
+
+        ## Let's skip the last remark and try to make a generic and
+        ## correct solution from the start: 1) if any flags are True,
+        ## then consider flags set as None as False.  2) if any flags
+        ## are still None, then consider those to be True.  3) List
+        ## the flags that are True as acceptable component types.
+
+        comptypesl = ('todo', 'event', 'journal')
+        if any (getattr(self, x) for x in comptypesl):
+            for x in comptypesl:
+                if getattr(self, x) is None:
+                    setattr(self, x, False)
+        else:
+            for x in comptypesl:
+                if getattr(self, x) is None:
+                    setattr(self, x, True)
+
+        ## CPU optimization - skip filtering if it's not needed
+        if not all (getattr(self, x) for x in comptypesl):
+            import pdb; pdb.set_trace()
+            comptypesu = set([f"V{x.upper()}" for x in comptypesl if getattr(self, x)])
+            recurrence_set = (x for x in recurrence_set if x.name in comptypesu)
+
+        ## expand
+        if 'rrule' in first and self.start and self.end:
+            ## We're already filtering component type above,
+            ## no point fine-tuning the component type list here
+            components = ['VTODO', 'VEVENT', 'VJOURNAL']
+            recur = recurring_ical_events.of(recurrence_set, components)
+            recurrence_set = recur.between(self.start, self.end)
+        else:
+            if self.start or self.end:
+                recurrence_set = (x for x in recurrence_set if self._check_range(x))
+
+        if self.expand:
+            
+            ## TODO: fix wrapping, if needed
+            return recurrence_set
+        else:
+            if next(recurrence_set, None):
+                return component
+            else:
+                return None
 
     def filter(
         self, components: list[Union["Calendar", "CalendarObjectResource"]]
