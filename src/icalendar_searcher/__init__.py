@@ -1,6 +1,6 @@
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Union
 
@@ -20,7 +20,7 @@ types_factory = TypesFactory()
 
 ## Helper to normalize date/datetime for comparison
 ## (I feel this one is duplicated over many projects ...)
-def _normalize_dt(dt_value):
+def _normalize_dt(dt_value: Union[date, datetime]) -> datetime:
     """Convert date to datetime for comparison, or return datetime as-is with timezone."""
     if dt_value is None:
         return None
