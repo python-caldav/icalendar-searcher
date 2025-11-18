@@ -357,16 +357,8 @@ class Searcher:
         if not all(getattr(self, x) for x in comptypesl):
             recurrence_set = (x for x in recurrence_set if x.name in comptypesu)
 
-        ## exclude_completed would be a better variable perhaps
-        if not self.include_completed:
-            recurrence_set = (
-                x
-                for x in recurrence_set
-                if (
-                    x.name != "VTODO"
-                    or (x.get("STATUS", "NEEDS-ACTION") == "NEEDS-ACTION" and "COMPLETED" not in x)
-                )
-            )
+        ## Filter based on include_completed setting
+        recurrence_set = (x for x in recurrence_set if self._check_completed_filter(x))
 
         ## Apply property filters
         if self._property_filters or self._property_operator:
@@ -590,6 +582,22 @@ class Searcher:
         elif self.start and comp_end:
             return self.start < comp_end
         return True
+
+    def _check_completed_filter(self, component: Component) -> bool:
+        """Check if a component should be included based on the include_completed filter.
+
+        :param component: A single calendar component
+        :return: True if the component should be included, False if it should be filtered out
+        """
+        if self.include_completed:
+            return True
+
+        ## If include_completed is False, exclude completed VTODOs
+        ## Include everything that is not a VTODO, or VTODOs that are not completed
+        return component.name != "VTODO" or (
+            component.get("STATUS", "NEEDS-ACTION") == "NEEDS-ACTION"
+            and "COMPLETED" not in component
+        )
 
     ## DISCLAIMER: AI-generated code.  But LGTM!
     def _check_property_filters(self, component: Component) -> bool:
