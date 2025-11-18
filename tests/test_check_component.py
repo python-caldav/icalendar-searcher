@@ -2,7 +2,7 @@ from datetime import datetime
 
 from icalendar import Calendar, Event, Todo
 
-from icalendar_searcher import Searcher, peek
+from icalendar_searcher import Searcher, _iterable_or_false
 
 
 def test_include_completed() -> None:
@@ -66,15 +66,15 @@ def test_filter_component_types() -> None:
     for searcher in (Searcher(), Searcher(event=True), Searcher(todo=False)):
         assert searcher.check_component(cal)
 
-## peek() was defined to support return values evaluating into False,
+## _iterable_or_false() was defined to support return values evaluating into False,
 ## but still support generators
-def test_peek() -> None:
-    assert peek(["a", "b", "c"])
-    assert "b" in peek(["a", "b", "c"])
-    assert peek([]) is False
-    assert peek(range(1, 4))
-    assert peek(range(0, 0)) is False
+def test_iterable_or_false() -> None:
+    assert _iterable_or_false(["a", "b", "c"])
+    assert "b" in _iterable_or_false(["a", "b", "c"])
+    assert _iterable_or_false([]) is False
+    assert _iterable_or_false(range(1, 4))
+    assert _iterable_or_false(range(0, 0)) is False
     mygen1 = (x for x in range(1, 8) if x > 2)
     mygen2 = (x for x in range(1, 8) if x < 0)
-    assert next(peek(mygen1)) == 3
-    assert peek(mygen2) is False
+    assert next(_iterable_or_false(mygen1)) == 3
+    assert _iterable_or_false(mygen2) is False

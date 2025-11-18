@@ -34,12 +34,11 @@ def _normalize_dt(dt_value):
     return dt_value.astimezone()
 
 
-## TODO: Find a better name for this one.  peek is a terrible name.
 ## Helper - generators are generally more neat than lists,
 ## but bool(x) will always return True.  I'd like to verify
 ## that a generator is not empty, without side effects.
 ## This seems to be some sort of a work-around
-def peek(g: Iterable, _debug_print_peek: bool=False) -> Union[bool, Iterable]:
+def _iterable_or_false(g: Iterable, _debug_print_peek: bool=False) -> Union[bool, Iterable]:
     """This method will return False if it's not possible to get an
     item from the iterable (which can only be done by utilizing
     `next`).  It will then return a new generator that behaves like
@@ -374,7 +373,7 @@ class Searcher:
 
         if self.expand:
             ## TODO: fix wrapping, if needed
-            return peek(recurrence_set)
+            return _iterable_or_false(recurrence_set)
         else:
             if next(recurrence_set, None):
                 return (component,)
