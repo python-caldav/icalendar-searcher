@@ -12,6 +12,7 @@ from icalendar import Calendar, Event, Todo
 import icalendar_searcher
 from icalendar_searcher import Searcher
 
+
 ## TODO: This is a fragile test - there is no requirement that the
 ## values turn out the way they do, the only requiement is that they
 ## can be sorted correctly.  I think it would be a good idea to
@@ -49,6 +50,7 @@ def test_sorting_value_mixed_types_and_reverse() -> None:
     assert vals[1] == 5
     assert vals[2] == bytes(b ^ 0xFF for b in b"abc")
     assert vals[3] == "x,y"
+
 
 def test_sorting_value_status_default_for_component_types() -> None:
     """If STATUS is not set, defaults should be used based on component type."""

@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from itertools import chain
@@ -18,8 +18,18 @@ if TYPE_CHECKING:
 ## every loop ieration
 types_factory = TypesFactory()
 
-## Helper
-def non_empty_generator(g: generator
+## Helper - generators are generally more neat than lists,
+## but bool(x) will always return True.  I'd like to verify
+## that a generator is not empty, without side effects.
+## This seems to be some sort of a work-around
+def peek(g: Iterable):
+    if not isinstance(g, Iterator):
+        return bool(g) and g
+    try:
+        my_value = next(g)
+        return chain((my_value,), g)
+    except StopIteration:
+        return False
 
 @dataclass
 class Searcher:
@@ -172,7 +182,7 @@ class Searcher:
         self, component: Union["Calendar", "CalendarObjectResource"]
     ) -> Union["Calendar", "CalendarObjectResource"]:
         """
-        Checks if one component (or recurrence set) matches the filters.  If the component parameter is a calendar containing several independent components, an Exception may be raised.  The 
+        Checks if one component (or recurrence set) matches the filters.  If the component parameter is a calendar containing several independent components, an Exception may be raised.  The
 
         * On a match, the component will be returned, otherwise ``None``.
         * If a time specification is given and the component given is a
@@ -222,7 +232,6 @@ class Searcher:
 
         ## CPU optimization - skip filtering if it's not needed
         if not all (getattr(self, x) for x in comptypesl):
-            import pdb; pdb.set_trace()
             comptypesu = set([f"V{x.upper()}" for x in comptypesl if getattr(self, x)])
             recurrence_set = (x for x in recurrence_set if x.name in comptypesu)
 
@@ -238,9 +247,8 @@ class Searcher:
                 recurrence_set = (x for x in recurrence_set if self._check_range(x))
 
         if self.expand:
-            
             ## TODO: fix wrapping, if needed
-            return recurrence_set
+            return peek(recurrence_set)
         else:
             if next(recurrence_set, None):
                 return component
