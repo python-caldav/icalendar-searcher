@@ -66,6 +66,7 @@ def test_filter_component_types() -> None:
     for searcher in (Searcher(), Searcher(event=True), Searcher(todo=False)):
         assert searcher.check_component(cal)
 
+
 ## _iterable_or_false() was defined to support return values evaluating into False,
 ## but still support generators
 def test_iterable_or_false() -> None:

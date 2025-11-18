@@ -235,4 +235,6 @@ def test_recurrence_exception_modified_summary_not_match_wrong_range() -> None:
         end=datetime(2025, 1, 7, 0, 0),
     )
     searcher.add_property_filter("SUMMARY", "Special Planning Session", operator="==")
-    assert not searcher.check_component(cal), "Should not match when exception is outside date range"
+    assert not searcher.check_component(cal), (
+        "Should not match when exception is outside date range"
+    )

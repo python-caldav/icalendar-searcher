@@ -12,7 +12,7 @@ from icalendar import Calendar, Event, Todo
 from icalendar_searcher import Searcher
 
 
-def test_all_day_event_matches_date_range():
+def test_all_day_event_matches_date_range() -> None:
     """All-day event (date-only DTSTART) should match when date range covers it."""
     cal = Calendar()
     event = Event()
@@ -31,7 +31,7 @@ def test_all_day_event_matches_date_range():
     assert result, "All-day event should match date range covering it"
 
 
-def test_all_day_event_matches_datetime_range_spanning():
+def test_all_day_event_matches_datetime_range_spanning() -> None:
     """All-day event should match when datetime range spans across it."""
     cal = Calendar()
     event = Event()
@@ -50,7 +50,7 @@ def test_all_day_event_matches_datetime_range_spanning():
     assert result, "All-day event should match range spanning it"
 
 
-def test_all_day_event_not_match_before_range():
+def test_all_day_event_not_match_before_range() -> None:
     """All-day event should not match when it's before the search range."""
     cal = Calendar()
     event = Event()
@@ -69,7 +69,7 @@ def test_all_day_event_not_match_before_range():
     assert not result, "All-day event before range should not match"
 
 
-def test_all_day_event_not_match_after_range():
+def test_all_day_event_not_match_after_range() -> None:
     """All-day event should not match when it's after the search range."""
     cal = Calendar()
     event = Event()
@@ -88,7 +88,7 @@ def test_all_day_event_not_match_after_range():
     assert not result, "All-day event after range should not match"
 
 
-def test_all_day_event_single_day():
+def test_all_day_event_single_day() -> None:
     """Single-day all-day event (no DTEND) should match."""
     cal = Calendar()
     event = Event()
@@ -107,7 +107,7 @@ def test_all_day_event_single_day():
     assert result, "Single-day all-day event should match"
 
 
-def test_all_day_event_at_range_boundary_start():
+def test_all_day_event_at_range_boundary_start() -> None:
     """All-day event at the start boundary of range should match."""
     cal = Calendar()
     event = Event()
@@ -126,7 +126,7 @@ def test_all_day_event_at_range_boundary_start():
     assert result, "All-day event at start boundary should match"
 
 
-def test_all_day_event_at_range_boundary_end():
+def test_all_day_event_at_range_boundary_end() -> None:
     """All-day event at the end boundary of range should match."""
     cal = Calendar()
     event = Event()
@@ -145,7 +145,7 @@ def test_all_day_event_at_range_boundary_end():
     assert result, "All-day event at end boundary should match"
 
 
-def test_todo_with_date_only_dtstart():
+def test_todo_with_date_only_dtstart() -> None:
     """Todo with date-only DTSTART should work with datetime range."""
     task = Todo()
     task.add("uid", "task123")
@@ -161,7 +161,7 @@ def test_todo_with_date_only_dtstart():
     assert result, "Todo with date-only DTSTART should match"
 
 
-def test_todo_with_date_only_due():
+def test_todo_with_date_only_due() -> None:
     """Todo with date-only DUE should work with datetime range."""
     task = Todo()
     task.add("uid", "task123")
@@ -176,7 +176,8 @@ def test_todo_with_date_only_due():
     result = searcher.check_component(task)
     assert result, "Todo with date-only DUE should match"
 
-def test_all_day_event_multi_day():
+
+def test_all_day_event_multi_day() -> None:
     """Multi-day all-day event should match range overlapping any part."""
     cal = Calendar()
     event = Event()
@@ -196,7 +197,7 @@ def test_all_day_event_multi_day():
     assert result, "Multi-day all-day event should match range overlapping it"
 
 
-def test_all_day_event_no_range_filter():
+def test_all_day_event_no_range_filter() -> None:
     """All-day event should match when no date range is specified."""
     cal = Calendar()
     event = Event()
@@ -210,7 +211,7 @@ def test_all_day_event_no_range_filter():
     assert result, "All-day event should match when no date filter specified"
 
 
-def test_all_day_event_no_end_defaults_one_day():
+def test_all_day_event_no_end_defaults_one_day() -> None:
     """All-day event with no DTEND should default to one-day duration."""
     cal = Calendar()
     event = Event()
@@ -226,10 +227,12 @@ def test_all_day_event_no_end_defaults_one_day():
         start=datetime(2025, 1, 15, 0, 0),
         end=datetime(2025, 1, 16, 0, 0),
     )
-    assert searcher.check_component(cal), "Event with date-only start and no end should match that day"
+    assert searcher.check_component(cal), (
+        "Event with date-only start and no end should match that day"
+    )
 
 
-def test_all_day_event_no_end_not_match_next_day():
+def test_all_day_event_no_end_not_match_next_day() -> None:
     """All-day event with no DTEND should not extend to next day."""
     cal = Calendar()
     event = Event()
@@ -245,10 +248,12 @@ def test_all_day_event_no_end_not_match_next_day():
         start=datetime(2025, 1, 16, 0, 0),
         end=datetime(2025, 1, 17, 0, 0),
     )
-    assert not searcher.check_component(cal), "Event with one-day duration should not match next day"
+    assert not searcher.check_component(cal), (
+        "Event with one-day duration should not match next day"
+    )
 
 
-def test_event_with_duration_no_end():
+def test_event_with_duration_no_end() -> None:
     """Event with DURATION set but no DTEND should work correctly."""
     from datetime import timedelta
 
@@ -270,7 +275,7 @@ def test_event_with_duration_no_end():
     assert searcher.check_component(cal), "Event with DURATION should match"
 
 
-def test_event_with_duration_date_start():
+def test_event_with_duration_date_start() -> None:
     """All-day event with DURATION set should work correctly."""
     from datetime import timedelta
 
@@ -291,7 +296,7 @@ def test_event_with_duration_date_start():
     assert searcher.check_component(cal), "Multi-day event with DURATION should match middle day"
 
 
-def test_todo_with_duration_no_due():
+def test_todo_with_duration_no_due() -> None:
     """Todo with DURATION but no DUE should work correctly."""
     from datetime import timedelta
 
@@ -312,7 +317,7 @@ def test_todo_with_duration_no_due():
     assert searcher.check_component(cal), "Todo with DURATION should match"
 
 
-def test_todo_no_dtstart_no_due_with_created_completed():
+def test_todo_no_dtstart_no_due_with_created_completed() -> None:
     """Todo with only CREATED and COMPLETED (no DTSTART/DUE) should be handled."""
     task = Todo()
     task.add("uid", "task-created-completed")
@@ -334,7 +339,7 @@ def test_todo_no_dtstart_no_due_with_created_completed():
     assert result, "Todo without DTSTART/DUE should match time range (RFC4791 9.9)"
 
 
-def test_todo_no_dtstart_no_due_created_only():
+def test_todo_no_dtstart_no_due_created_only() -> None:
     """Todo with only CREATED (no DTSTART/DUE/COMPLETED) should be handled."""
     task = Todo()
     task.add("uid", "task-created-only")
@@ -354,7 +359,7 @@ def test_todo_no_dtstart_no_due_created_only():
     assert result, "Todo without DTSTART/DUE should match any time range"
 
 
-def test_todo_no_dtstart_no_due_no_timestamps():
+def test_todo_no_dtstart_no_due_no_timestamps() -> None:
     """Todo with no time-related fields at all should match any range."""
     task = Todo()
     task.add("uid", "minimal-task")
@@ -372,7 +377,7 @@ def test_todo_no_dtstart_no_due_no_timestamps():
     assert result, "Todo with no time fields should match any time range"
 
 
-def test_event_duration_extends_beyond_range():
+def test_event_duration_extends_beyond_range() -> None:
     """Event with DURATION extending beyond search range should still match."""
     from datetime import timedelta
 
@@ -393,7 +398,7 @@ def test_event_duration_extends_beyond_range():
     assert searcher.check_component(cal), "Event with DURATION should match partial overlap"
 
 
-def test_all_day_event_duration_boundary():
+def test_all_day_event_duration_boundary() -> None:
     """All-day event with DURATION at range boundary should match correctly."""
     from datetime import timedelta
 

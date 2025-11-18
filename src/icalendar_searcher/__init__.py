@@ -3,11 +3,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Union
-from recurring_ical_events import DATE_MAX_DT, DATE_MIN_DT
 
 import recurring_ical_events
 from icalendar import Calendar, Component, Timezone, error
 from icalendar.prop import TypesFactory
+from recurring_ical_events import DATE_MAX_DT, DATE_MIN_DT
 
 if TYPE_CHECKING:
     from caldav.calendarobjectresource import CalendarObjectResource
@@ -27,6 +27,7 @@ def _normalize_dt(dt_value):
     ## If it's a date (not datetime), convert to datetime at midnight
     if hasattr(dt_value, "year") and not hasattr(dt_value, "hour"):
         from datetime import time
+
         return datetime.combine(dt_value, time.min).astimezone()
     ## TODO: we should probably do some research on the default calendar timezone,
     ## which may not be the same as the local timezone ... uh ... timezones are
@@ -38,7 +39,7 @@ def _normalize_dt(dt_value):
 ## but bool(x) will always return True.  I'd like to verify
 ## that a generator is not empty, without side effects.
 ## This seems to be some sort of a work-around
-def _iterable_or_false(g: Iterable, _debug_print_peek: bool=False) -> Union[bool, Iterable]:
+def _iterable_or_false(g: Iterable, _debug_print_peek: bool = False) -> bool | Iterable:
     """This method will return False if it's not possible to get an
     item from the iterable (which can only be done by utilizing
     `next`).  It will then return a new generator that behaves like
@@ -210,7 +211,7 @@ class Searcher:
     def check_component(
         self,
         component: Union["Calendar", "CalendarObjectResource"],
-        _ignore_rrule_and_time: bool=False,
+        _ignore_rrule_and_time: bool = False,
     ) -> Union["Calendar", "CalendarObjectResource"]:
         """Checks if one component (or recurrence set) matches the filters.  If the component parameter is a calendar containing several independent components, an Exception may be raised, though recurrence sets should be suppored.
 
@@ -221,7 +222,7 @@ class Searcher:
         * If a time specification is given and the component given is
           a recurring component, it will be expanded internally to
           check if it matches the given time specification.
-        
+
         * If there is a match, the component should be returned
           (wrapped in a tuple) - unless ``expand`` is set, in which
           case all matching recurrences will be returned (as a
@@ -230,7 +231,7 @@ class Searcher:
         comp = self._unwrap(component)
 
         ## Ensure timezone is set.  Ensure start and end are datetime objects.
-        for attr in ('start', 'end'):
+        for attr in ("start", "end"):
             value = getattr(self, attr)
             if value:
                 if not isinstance(value, datetime):
@@ -248,18 +249,23 @@ class Searcher:
         ## if there are mroe components, it should be a recurrence set
         ## one of the things identifying a recurrence set is that the
         ## uid is the same for all components in the set
-        if any(x for x in comp.subcomponents
-                 if not isinstance(x, Timezone) and x["uid"] != first["uid"]):
-            raise ValueError("Input parameter component is supposed to contain a single component or a recurrence set - but multiple UIDs found")
+        if any(
+            x
+            for x in comp.subcomponents
+            if not isinstance(x, Timezone) and x["uid"] != first["uid"]
+        ):
+            raise ValueError(
+                "Input parameter component is supposed to contain a single component or a recurrence set - but multiple UIDs found"
+            )
 
         ## A recurrence set should always be one "master" with
         ## rrule-id set, followed by zero or more objects without
         ## rrule-id but with recurrence-id set
-        if len(comp.subcomponents)>1:
-            assert 'rrule' in comp.subcomponents[0]
-            assert all ('recurrence-id' in x for x in comp.subcomponents[1:])
-            assert all ('rrule' not in x for x in  comp.subcomponents[1:])
-        
+        if len(comp.subcomponents) > 1:
+            assert "rrule" in comp.subcomponents[0]
+            assert all("recurrence-id" in x for x in comp.subcomponents[1:])
+            assert all("rrule" not in x for x in comp.subcomponents[1:])
+
         ## recurrence_set is our internal generator containing
         ## everything that hasn't been filtered out yet (in most
         ## cases, the generator will yield either one or zero
@@ -270,12 +276,12 @@ class Searcher:
 
         ## Recurrences may be a night-mare.
         ## I'm not sure if this is very well thought through, but my thoughts now are:
-        
+
         ## 1) we need to check if the not-expanded base element
         ## matches any non-date-related search-filters before doing
         ## anything else.  We do this with a recursive call with an
         ## internal parameter _ignore_rrule_and_time set.
-        
+
         ## 2) If the base element does not match, we may probably skip
         ## expansion (only problem I can see with it is some filtering
         ## like "show me all events happening on a Monday" - which is
@@ -283,13 +289,13 @@ class Searcher:
         ## expansion, otherwise we may end up doing an infinite (or
         ## very-huge) expansion just to verify that we can return
         ## None/False
-        
+
         ## 3) if the base element does not match, there may still be
         ## special cases matching.  We solve this by running the
         ## filter logics on all but the
-        
+
         ## 4) if the base element matches, we may need to expand it
-        if 'rrule' in first and not _ignore_rrule_and_time:
+        if "rrule" in first and not _ignore_rrule_and_time:
             ## TODO: implement logic above
             base_element_match = self.check_component(first, _ignore_rrule_and_time=True)
             if not base_element_match:
@@ -300,9 +306,7 @@ class Searcher:
         ## Restrict the recurrence set to only same uid (TODO: if
         ## anything else is given, we may want to raise a ValueError)
         recurrence_set = (
-            x
-            for x in recurrence_set
-            if not isinstance(x, Timezone) and x["uid"] == first["uid"]
+            x for x in recurrence_set if not isinstance(x, Timezone) and x["uid"] == first["uid"]
         )
 
         ## self.include_completed should default to False if todo is explicity set,
@@ -360,10 +364,7 @@ class Searcher:
                 for x in recurrence_set
                 if (
                     x.name != "VTODO"
-                    or (
-                        x.get("STATUS", "NEEDS-ACTION") == "NEEDS-ACTION"
-                        and "COMPLETED" not in x
-                    )
+                    or (x.get("STATUS", "NEEDS-ACTION") == "NEEDS-ACTION" and "COMPLETED" not in x)
                 )
             )
 
@@ -502,7 +503,7 @@ class Searcher:
         try:
             comp_start = _normalize_dt(component.start)
         except error.IncompleteComponent:
-            if component.name == 'VEVENT':
+            if component.name == "VEVENT":
                 ## for events, DTSTART is mandatory
                 raise
             comp_start = None
@@ -526,7 +527,7 @@ class Searcher:
         elif comp_name == "VTODO":
             ## There is a long matrix for VTODO in the RFC, and it
             ## may seem complicated, but it isn't that bad:
-            
+
             ## * A task with DTSTART and DURATION is equivalent with a
             ##   task with DTSTART and DUE.  This complexity is
             ##   already handled by the icalendar library, so all rows
@@ -542,11 +543,11 @@ class Searcher:
             ## * If both created/completed is set and
             ##   comp_start/comp_end is not set, then use those instead
             if not comp_start:
-                if 'CREATED' in component:
-                    comp_start = _normalize_dt(component['CREATED'].dt)
-                if 'COMPLETED' in component:
-                    comp_end = _normalize_dt(component['COMPLETED'].dt)
- 
+                if "CREATED" in component:
+                    comp_start = _normalize_dt(component["CREATED"].dt)
+                if "COMPLETED" in component:
+                    comp_end = _normalize_dt(component["COMPLETED"].dt)
+
             ## * A task may have a DUE before the DTSTART.  The
             ##   complicated OR-logic in the table may be eliminated
             ##   by swapping start/end if necessary:
@@ -573,8 +574,8 @@ class Searcher:
             ## Now the match requirement is start <= comp_end
             ## while otherwise the match requirement is start < comp_end
             ## minor detail, we'll work around it:
-            comp_end += timedelta(seconds = 1)
-    
+            comp_end += timedelta(seconds=1)
+
         ## After the logic above, all rows in the matrix boils down to
         ## this: (we could reduce it even more by defaulting
         ## self.start and self.end to DATE_MIN_DT etc)
