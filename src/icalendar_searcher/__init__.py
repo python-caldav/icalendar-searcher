@@ -554,7 +554,7 @@ class Searcher:
             if comp_end and comp_start and comp_end < comp_start:
                 tmp = comp_start
                 comp_start = comp_end
-                comp_end = comp_start
+                comp_end = tmp
 
             ## * A task with no timestamps is considered to be done "at any or all days".
             if not comp_end and not comp_start:

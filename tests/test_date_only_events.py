@@ -417,3 +417,123 @@ def test_all_day_event_duration_boundary() -> None:
         end=datetime(2025, 1, 17, 0, 0),
     )
     assert searcher.check_component(cal), "Event duration should match range exactly"
+
+
+def test_todo_due_before_dtstart() -> None:
+    """Todo with DUE before DTSTART should match range between them."""
+    task = Todo()
+    task.add("uid", "backwards-task")
+    task.add("summary", "Task with DUE before DTSTART")
+    task.add("dtstart", datetime(2025, 1, 20, 10, 0))  # Starts Jan 20
+    task.add("due", datetime(2025, 1, 15, 17, 0))  # Due Jan 15 (before start!)
+    cal = Calendar()
+    cal.add_component(task)
+
+    # Search for time between DUE and DTSTART (Jan 16-19)
+    searcher = Searcher(
+        todo=True,
+        start=datetime(2025, 1, 16, 0, 0),
+        end=datetime(2025, 1, 19, 0, 0),
+    )
+    result = searcher.check_component(cal)
+    assert result, "Todo with DUE before DTSTART should match range between them"
+
+
+def test_todo_due_before_dtstart_match_at_due() -> None:
+    """Todo with DUE before DTSTART should match at DUE date."""
+    task = Todo()
+    task.add("uid", "backwards-task2")
+    task.add("summary", "Another backwards task")
+    task.add("dtstart", datetime(2025, 1, 20, 10, 0))
+    task.add("due", datetime(2025, 1, 15, 17, 0))
+    cal = Calendar()
+    cal.add_component(task)
+
+    # Search at DUE date
+    searcher = Searcher(
+        todo=True,
+        start=datetime(2025, 1, 15, 0, 0),
+        end=datetime(2025, 1, 16, 0, 0),
+    )
+    result = searcher.check_component(cal)
+    assert result, "Todo with DUE before DTSTART should match at DUE"
+
+
+def test_todo_due_before_dtstart_match_at_start() -> None:
+    """Todo with DUE before DTSTART should match at DTSTART date."""
+    task = Todo()
+    task.add("uid", "backwards-task3")
+    task.add("summary", "Yet another backwards task")
+    task.add("dtstart", datetime(2025, 1, 20, 10, 0))
+    task.add("due", datetime(2025, 1, 15, 17, 0))
+    cal = Calendar()
+    cal.add_component(task)
+
+    # Search at DTSTART date
+    searcher = Searcher(
+        todo=True,
+        start=datetime(2025, 1, 20, 0, 0),
+        end=datetime(2025, 1, 21, 0, 0),
+    )
+    result = searcher.check_component(cal)
+    assert result, "Todo with DUE before DTSTART should match at DTSTART"
+
+
+def test_todo_due_before_dtstart_not_match_before_due() -> None:
+    """Todo with DUE before DTSTART should not match before DUE."""
+    task = Todo()
+    task.add("uid", "backwards-task4")
+    task.add("summary", "Backwards task boundary test")
+    task.add("dtstart", datetime(2025, 1, 20, 10, 0))
+    task.add("due", datetime(2025, 1, 15, 17, 0))
+    cal = Calendar()
+    cal.add_component(task)
+
+    # Search before DUE date
+    searcher = Searcher(
+        todo=True,
+        start=datetime(2025, 1, 10, 0, 0),
+        end=datetime(2025, 1, 14, 0, 0),
+    )
+    result = searcher.check_component(cal)
+    assert not result, "Todo with DUE before DTSTART should not match before DUE"
+
+
+def test_todo_due_before_dtstart_not_match_after_start() -> None:
+    """Todo with DUE before DTSTART should not match after DTSTART."""
+    task = Todo()
+    task.add("uid", "backwards-task5")
+    task.add("summary", "Backwards task after boundary test")
+    task.add("dtstart", datetime(2025, 1, 20, 10, 0))
+    task.add("due", datetime(2025, 1, 15, 17, 0))
+    cal = Calendar()
+    cal.add_component(task)
+
+    # Search after DTSTART date
+    searcher = Searcher(
+        todo=True,
+        start=datetime(2025, 1, 22, 0, 0),
+        end=datetime(2025, 1, 25, 0, 0),
+    )
+    result = searcher.check_component(cal)
+    assert not result, "Todo with DUE before DTSTART should not match after DTSTART"
+
+
+def test_todo_due_before_dtstart_date_only() -> None:
+    """Todo with date-only DUE before date-only DTSTART should work."""
+    task = Todo()
+    task.add("uid", "backwards-date-task")
+    task.add("summary", "Date-only backwards task")
+    task.add("dtstart", date(2025, 1, 20))  # Jan 20
+    task.add("due", date(2025, 1, 15))  # Jan 15
+    cal = Calendar()
+    cal.add_component(task)
+
+    # Search between DUE and DTSTART
+    searcher = Searcher(
+        todo=True,
+        start=datetime(2025, 1, 17, 0, 0),
+        end=datetime(2025, 1, 19, 0, 0),
+    )
+    result = searcher.check_component(cal)
+    assert result, "Date-only todo with DUE before DTSTART should match between them"
