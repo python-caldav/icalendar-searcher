@@ -92,13 +92,14 @@ class Searcher:
     If ``todo`` is given ``include_completed`` defaults to False,
     which means completed tasks will be tfiltered out.
 
-    ``start`` and ``end`` is giving a time range.  The CalDAV logic
-    will be honored, see RFC4791, section 9.9 for very clear
-    definitions of what should be returned and what should be filtered
-    away.  Timestamps should ideally be with a time zone, if not given
-    the local time zone will be assumed.  All-day events may be tricky
-    to get correct when timestamps are given and calendar data covers
-    multiple time zones.
+    ``start`` and ``end`` is giving a time range.  RFC4791, section
+    9.9 gives a very clear and sane definitions of what should be
+    returned when searching a CalDAV calendar for contents over a time
+    span.  While this package is not related to CalDAV pper se, the
+    logic seems sane, so we will stick to that one.  Timestamps should
+    ideally be with a time zone, if not given the local time zone will
+    be assumed.  All-day events may be tricky to get correct when
+    timestamps are given and calendar data covers multiple time zones.
 
     ``alarm_start`` and ``alarm_end`` is similar for alarm searching
 
