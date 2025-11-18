@@ -10,7 +10,7 @@ from icalendar.prop import TypesFactory
 
 if TYPE_CHECKING:
     from caldav.calendarobjectresource import CalendarObjectResource
-    from icalendar import Calendar, Component
+    from icalendar import Calendar
 
 ## We need an instance of the icalendar.prop.TypesFactory class.
 ## We'll make a global instance rather than instantiate it for
@@ -22,7 +22,7 @@ types_factory = TypesFactory()
 ## but bool(x) will always return True.  I'd like to verify
 ## that a generator is not empty, without side effects.
 ## This seems to be some sort of a work-around
-def peek(g: Iterable) -> Union[bool, Iterable]:
+def peek(g: Iterable) -> bool | Iterable:
     if not isinstance(g, Iterator):
         return bool(g) and g
     try:
