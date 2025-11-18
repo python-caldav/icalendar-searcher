@@ -161,6 +161,7 @@ def test_todo_with_alarm_relative_to_due() -> None:
     alarm.add("action", "EMAIL")
     alarm.add("trigger", timedelta(days=-1))
     alarm.add("description", "Report due tomorrow!")
+    alarm['TRIGGER'].params['RELATED'] = 'END'
     task.add_component(alarm)
 
     cal = Calendar()
@@ -224,9 +225,11 @@ def test_alarm_with_repeat() -> None:
     # Search for second repetition (07:05)
     searcher = Searcher(
         event=True,
-        alarm_start=datetime(2025, 1, 15, 7, 3),
-        alarm_end=datetime(2025, 1, 15, 7, 8),
+        alarm_start=datetime(2025, 1, 15, 7, 3).astimezone(),
+        alarm_end=datetime(2025, 1, 15, 7, 8).astimezone(),
     )
+    result = searcher._check_alarm_range(event)
+    assert result, "Event with repeating alarm should match any repetition"
     result = searcher.check_component(cal)
     assert result, "Event with repeating alarm should match any repetition"
 
@@ -355,6 +358,7 @@ def test_alarm_trigger_related_end() -> None:
     alarm = Alarm()
     alarm.add("action", "DISPLAY")
     alarm.add("trigger", timedelta(0))
+    alarm['TRIGGER'].params['RELATED'] = 'END'
     # Note: TRIGGER can have RELATED parameter (START or END)
     # For this test, we assume it's related to END
     event.add_component(alarm)
@@ -371,7 +375,7 @@ def test_alarm_trigger_related_end() -> None:
     # of RELATED parameter handling
     result = searcher.check_component(cal)
     # This assertion depends on implementation details
-    assert result or not result  # Placeholder until implementation exists
+    assert result
 
 
 def test_todo_alarm_no_dtstart_no_due() -> None:

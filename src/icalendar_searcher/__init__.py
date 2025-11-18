@@ -638,8 +638,9 @@ class Searcher:
 
         return True
 
-    ## DISCLAIMER: AI-generated code.  Alarms are a bit complex.  I
-    ## believe I could have made this with fewer code lines.
+    ## DISCLAIMER: Mostly AI-generated code.  Alarms are a bit complex.
+    ## I've done a little bit of polishing.  I still feel it should
+    ## be possible to reduce some code duplication
     def _check_alarm_range(self, component: Component) -> bool:
         """Check if a component has alarms that fire within the alarm time range.
 
@@ -664,20 +665,12 @@ class Searcher:
         comp_end = None
         try:
             comp_start = _normalize_dt(component.start)
-        except Exception:
+        except error.IncompleteComponent:
             pass
         try:
             comp_end = _normalize_dt(component.end)
-        except Exception:
+        except error.IncompleteComponent:
             pass
-
-        ## For VTODO, if DUE is present, use it as the default anchor for relative triggers
-        comp_due = None
-        if component.name == "VTODO" and "DUE" in component:
-            try:
-                comp_due = _normalize_dt(component["DUE"].dt)
-            except Exception:
-                pass
 
         ## For each alarm, calculate when it fires
         for alarm in alarms:
@@ -707,9 +700,6 @@ class Searcher:
                 ## Calculate alarm time based on RELATED and component type
                 if related == "END" and comp_end:
                     alarm_time = comp_end + trigger_delta
-                elif component.name == "VTODO" and comp_due and related == "START":
-                    ## For VTODO, default to DUE if present
-                    alarm_time = comp_due + trigger_delta
                 elif comp_start:
                     alarm_time = comp_start + trigger_delta
                 else:
@@ -723,7 +713,7 @@ class Searcher:
             ## Check all repetitions, not just the first alarm
             if "REPEAT" in alarm and "DURATION" in alarm:
                 repeat_count = alarm["REPEAT"]
-                duration = alarm["DURATION"].td if hasattr(alarm["DURATION"], "td") else None
+                duration = alarm["DURATION"].dt if hasattr(alarm["DURATION"], "dt") else None
 
                 if duration:
                     ## Check each repetition
