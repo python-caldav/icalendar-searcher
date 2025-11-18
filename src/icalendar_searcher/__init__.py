@@ -5,12 +5,11 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, Union
 
 import recurring_ical_events
-from icalendar import Timezone
+from icalendar import Timezone, Calendar, Component
 from icalendar.prop import TypesFactory
 
 if TYPE_CHECKING:
     from caldav.calendarobjectresource import CalendarObjectResource
-    from icalendar import Calendar
 
 ## We need an instance of the icalendar.prop.TypesFactory class.
 ## We'll make a global instance rather than instantiate it for
@@ -185,7 +184,8 @@ class Searcher:
         """
         Checks if one component (or recurrence set) matches the filters.  If the component parameter is a calendar containing several independent components, an Exception may be raised.  The
 
-        * On a match, the component will be returned, otherwise ``None``.
+        * On a match, the component will be returned, otherwise
+          ``None`` or ``False``.
         * If a time specification is given and the component given is a
           recurring component, it will be expanded internally to check if
           it matches the given time specification.
@@ -210,6 +210,11 @@ class Searcher:
         ## TODO: we should consider raising a ValueError if there exists
         ## independent objects in the calendar given
 
+        ## self.include_completed should default to False if todo is explicity set,
+        ## otherwise True
+        if self.include_completed is None:
+            self.include_completed = not self.todo
+
         ## Component type flags are a bit difficult.  In the CalDAV library,
         ## if all of them are None, everything should be returned.  If only
         ## one of them is True, then only this kind of component type is
@@ -231,21 +236,35 @@ class Searcher:
                 if getattr(self, x) is None:
                     setattr(self, x, True)
 
-        ## CPU optimization - skip filtering if it's not needed
+        comptypesu = set([f"V{x.upper()}" for x in comptypesl if getattr(self, x)])
+
+        ## OPTIMIZATION TODO - first we do the expand, then we filter.
+        ## This guarantees correctness, but it's very bloated if it's
+        ## needed to create millions of recurrences that do not pass
+        ## filtering.  Perhaps the right thing would be to check the
+        ## master/template event and discard it if it doesn't match
+        ## the non-time-filers?  I can't see any cases where this
+        ## would cause failures?.
+        if "rrule" in first and self.start and self.end:
+            recur = recurring_ical_events.of(recurrence_set, comptypesu)
+            recurrence_set = recur.between(self.start, self.end)
+
+        ## OPTIMIZATION TODO: If the object was recurring, we should
+        ## probably trust recur.between to do the right thing?
+        if self.start or self.end:
+            recurrence_set = (x for x in recurrence_set if self._check_range(x))
+        
+        ## This if is just to save some few CPU cycles - skip filtering if it's not needed
         if not all(getattr(self, x) for x in comptypesl):
-            comptypesu = set([f"V{x.upper()}" for x in comptypesl if getattr(self, x)])
             recurrence_set = (x for x in recurrence_set if x.name in comptypesu)
 
-        ## expand
-        if "rrule" in first and self.start and self.end:
-            ## We're already filtering component type above,
-            ## no point fine-tuning the component type list here
-            components = ["VTODO", "VEVENT", "VJOURNAL"]
-            recur = recurring_ical_events.of(recurrence_set, components)
-            recurrence_set = recur.between(self.start, self.end)
-        else:
-            if self.start or self.end:
-                recurrence_set = (x for x in recurrence_set if self._check_range(x))
+        ## exclude_completed would be a better variable perhaps
+        if not self.include_completed:
+            recurrence_set = (
+                x for x in recurrence_set
+                if (x.name=='VTODO' and
+                    x.get('STATUS', 'NEEDS-ACTION') == 'NEEDS-ACTION' and
+                    not 'COMPLETED' in x))
 
         if self.expand:
             ## TODO: fix wrapping, if needed
@@ -346,4 +365,12 @@ class Searcher:
             component = component.icalendar_instance
         except AttributeError:
             pass
+        if isinstance(component, Component) and not isinstance(component, Calendar):
+            cal = Calendar()
+            cal.add_component(component)
+            component = cal
         return component
+
+    def _check_range(self, component):
+        raise NotImplementedError()
+    
