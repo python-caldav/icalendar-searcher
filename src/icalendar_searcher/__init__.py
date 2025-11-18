@@ -231,7 +231,7 @@ class Searcher:
         comp = self._unwrap(component)
 
         ## Ensure timezone is set.  Ensure start and end are datetime objects.
-        for attr in ("start", "end"):
+        for attr in ("start", "end", "alarm_start", "alarm_end"):
             value = getattr(self, attr)
             if value:
                 if not isinstance(value, datetime):
@@ -371,6 +371,10 @@ class Searcher:
         ## Apply property filters
         if self._property_filters or self._property_operator:
             recurrence_set = (x for x in recurrence_set if self._check_property_filters(x))
+
+        ## Apply alarm filters
+        if not _ignore_rrule_and_time and (self.alarm_start or self.alarm_end):
+            recurrence_set = (x for x in recurrence_set if self._check_alarm_range(x))
 
         if self.expand:
             ## TODO: fix wrapping, if needed
@@ -587,6 +591,7 @@ class Searcher:
             return self.start < comp_end
         return True
 
+    ## DISCLAIMER: AI-generated code.  But LGTM!
     def _check_property_filters(self, component: Component) -> bool:
         """Check if a component matches all property filters.
 
@@ -623,3 +628,120 @@ class Searcher:
                 raise NotImplementedError(f"Operator {operator} not implemented")
 
         return True
+
+    ## DISCLAIMER: AI-generated code.  Alarms are a bit complex.  I
+    ## believe I could have made this with fewer code lines.
+    def _check_alarm_range(self, component: Component) -> bool:
+        """Check if a component has alarms that fire within the alarm time range.
+
+        Implements RFC 4791 section 9.9 alarm time-range filtering.
+
+        :param component: A single calendar component (VEVENT, VTODO, or VJOURNAL)
+        :return: True if any alarm fires within the alarm range, False otherwise
+        """
+        from datetime import timedelta
+
+        ## Get all VALARM subcomponents
+        alarms = [x for x in component.subcomponents if x.name == "VALARM"]
+
+        if not alarms:
+            ## No alarms - doesn't match alarm search
+            return False
+
+        ## Get component start/end for relative trigger calculations
+        ## Use try/except because .start/.end may raise IncompleteComponent
+        ## For VTODO, RFC 5545 says TRIGGER is relative to DUE if present, else DTSTART
+        comp_start = None
+        comp_end = None
+        try:
+            comp_start = _normalize_dt(component.start)
+        except Exception:
+            pass
+        try:
+            comp_end = _normalize_dt(component.end)
+        except Exception:
+            pass
+
+        ## For VTODO, if DUE is present, use it as the default anchor for relative triggers
+        comp_due = None
+        if component.name == "VTODO" and "DUE" in component:
+            try:
+                comp_due = _normalize_dt(component["DUE"].dt)
+            except Exception:
+                pass
+
+        ## For each alarm, calculate when it fires
+        for alarm in alarms:
+            if "TRIGGER" not in alarm:
+                continue
+
+            trigger = alarm["TRIGGER"]
+
+            ## The icalendar library stores trigger values in .dt attribute
+            ## which can be either datetime (absolute) or timedelta (relative)
+            if not hasattr(trigger, "dt"):
+                continue
+
+            trigger_value = trigger.dt
+
+            ## Check if trigger is absolute (datetime) or relative (timedelta)
+            if isinstance(trigger_value, timedelta):
+                ## Relative trigger - timedelta from start or end
+                trigger_delta = trigger_value
+
+                ## Check TRIGGER's RELATED parameter (default is START)
+                ## For VTODO, default anchor is DUE if present, else DTSTART
+                related = "START"  # Default per RFC 5545
+                if hasattr(trigger, "params") and "RELATED" in trigger.params:
+                    related = trigger.params["RELATED"]
+
+                ## Calculate alarm time based on RELATED and component type
+                if related == "END" and comp_end:
+                    alarm_time = comp_end + trigger_delta
+                elif component.name == "VTODO" and comp_due and related == "START":
+                    ## For VTODO, default to DUE if present
+                    alarm_time = comp_due + trigger_delta
+                elif comp_start:
+                    alarm_time = comp_start + trigger_delta
+                else:
+                    ## No start, end, or due to relate to
+                    continue
+            else:
+                ## Absolute trigger - direct datetime
+                alarm_time = _normalize_dt(trigger_value)
+
+            ## Check for REPEAT and DURATION (repeating alarms/snooze functionality)
+            ## Check all repetitions, not just the first alarm
+            if "REPEAT" in alarm and "DURATION" in alarm:
+                repeat_count = alarm["REPEAT"]
+                duration = alarm["DURATION"].td if hasattr(alarm["DURATION"], "td") else None
+
+                if duration:
+                    ## Check each repetition
+                    for i in range(int(repeat_count) + 1):
+                        repeat_time = alarm_time + (duration * i)
+                        ## Check if this repetition fires within the alarm range
+                        if self.alarm_start and self.alarm_end:
+                            if self.alarm_start <= repeat_time < self.alarm_end:
+                                return True
+                        elif self.alarm_start:
+                            if repeat_time >= self.alarm_start:
+                                return True
+                        elif self.alarm_end:
+                            if repeat_time < self.alarm_end:
+                                return True
+                    ## None of the repetitions matched
+                    continue
+
+            ## Check if this alarm (first occurrence) fires within the alarm range
+            if self.alarm_start and self.alarm_end:
+                if self.alarm_start <= alarm_time < self.alarm_end:
+                    return True
+            elif self.alarm_start:
+                if alarm_time >= self.alarm_start:
+                    return True
+            elif self.alarm_end:
+                if alarm_time < self.alarm_end:
+                    return True
+
+        return False
