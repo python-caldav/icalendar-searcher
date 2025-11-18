@@ -18,6 +18,7 @@ def test_check_empty():
     ## equally acceptable)
     assert not searcher.check_component(empty_calendar)
 
+
 def test_filter_component_types():
     searcher = Searcher(todo=True)
     cal = Calendar()
@@ -26,13 +27,14 @@ def test_filter_component_types():
     cal.add_component(comp)
     assert not searcher.check_component(cal)
 
+
 def test_peek():
-    assert peek(['a', 'b', 'c'])
-    assert 'b' in peek(['a', 'b', 'c'])
+    assert peek(["a", "b", "c"])
+    assert "b" in peek(["a", "b", "c"])
     assert peek([]) is False
-    assert peek(range(1,4))
-    assert peek(range(0,0)) is False
-    mygen1 = (x for x in range(1,8) if x>2)
-    mygen2 = (x for x in range(1,8) if x<0)
+    assert peek(range(1, 4))
+    assert peek(range(0, 0)) is False
+    mygen1 = (x for x in range(1, 8) if x > 2)
+    mygen2 = (x for x in range(1, 8) if x < 0)
     assert next(peek(mygen1)) == 3
     assert peek(mygen2) is False

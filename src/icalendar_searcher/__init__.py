@@ -4,10 +4,9 @@ from datetime import datetime
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Union
 
+import recurring_ical_events
 from icalendar import Timezone
 from icalendar.prop import TypesFactory
-
-import recurring_ical_events
 
 if TYPE_CHECKING:
     from caldav.calendarobjectresource import CalendarObjectResource
@@ -17,6 +16,7 @@ if TYPE_CHECKING:
 ## We'll make a global instance rather than instantiate it for
 ## every loop ieration
 types_factory = TypesFactory()
+
 
 ## Helper - generators are generally more neat than lists,
 ## but bool(x) will always return True.  I'd like to verify
@@ -30,6 +30,7 @@ def peek(g: Iterable):
         return chain((my_value,), g)
     except StopIteration:
         return False
+
 
 @dataclass
 class Searcher:
@@ -196,16 +197,16 @@ class Searcher:
         comp = self._unwrap(component)
         ## Ignore everything except the first non-timezone component
         ## found ... and it's recurrence set
-        not_tz_components = (
-            x for x in comp.subcomponents
-            if not isinstance(x, Timezone))
+        not_tz_components = (x for x in comp.subcomponents if not isinstance(x, Timezone))
         try:
             first = next(not_tz_components)
         except StopIteration:
             return None
         recurrence_set = (
-            x for x in comp.subcomponents
-            if not isinstance(x, Timezone) and x['uid'] == first['uid'])
+            x
+            for x in comp.subcomponents
+            if not isinstance(x, Timezone) and x["uid"] == first["uid"]
+        )
         ## TODO: we should consider raising a ValueError if there exists
         ## independent objects in the calendar given
 
@@ -220,8 +221,8 @@ class Searcher:
         ## are still None, then consider those to be True.  3) List
         ## the flags that are True as acceptable component types.
 
-        comptypesl = ('todo', 'event', 'journal')
-        if any (getattr(self, x) for x in comptypesl):
+        comptypesl = ("todo", "event", "journal")
+        if any(getattr(self, x) for x in comptypesl):
             for x in comptypesl:
                 if getattr(self, x) is None:
                     setattr(self, x, False)
@@ -231,15 +232,15 @@ class Searcher:
                     setattr(self, x, True)
 
         ## CPU optimization - skip filtering if it's not needed
-        if not all (getattr(self, x) for x in comptypesl):
+        if not all(getattr(self, x) for x in comptypesl):
             comptypesu = set([f"V{x.upper()}" for x in comptypesl if getattr(self, x)])
             recurrence_set = (x for x in recurrence_set if x.name in comptypesu)
 
         ## expand
-        if 'rrule' in first and self.start and self.end:
+        if "rrule" in first and self.start and self.end:
             ## We're already filtering component type above,
             ## no point fine-tuning the component type list here
-            components = ['VTODO', 'VEVENT', 'VJOURNAL']
+            components = ["VTODO", "VEVENT", "VJOURNAL"]
             recur = recurring_ical_events.of(recurrence_set, components)
             recurrence_set = recur.between(self.start, self.end)
         else:

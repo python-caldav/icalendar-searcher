@@ -22,7 +22,8 @@ packages = [{include = "icalendar_searcher", from = "src"}]
 
 [tool.poetry.dependencies]
 icalendar = ">=6.0"
-recurring_ical_events = ">=2.0.0"
+recurring-ical-events = ">=3.8.0"
+
 [tool.poetry-dynamic-versioning]
 enable = true
 
