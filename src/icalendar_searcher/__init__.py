@@ -5,7 +5,7 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, Union
 
 import recurring_ical_events
-from icalendar import Timezone, Calendar, Component
+from icalendar import Calendar, Component, Timezone
 from icalendar.prop import TypesFactory
 
 if TYPE_CHECKING:
@@ -253,7 +253,7 @@ class Searcher:
         ## probably trust recur.between to do the right thing?
         if self.start or self.end:
             recurrence_set = (x for x in recurrence_set if self._check_range(x))
-        
+
         ## This if is just to save some few CPU cycles - skip filtering if it's not needed
         if not all(getattr(self, x) for x in comptypesl):
             recurrence_set = (x for x in recurrence_set if x.name in comptypesu)
@@ -261,10 +261,14 @@ class Searcher:
         ## exclude_completed would be a better variable perhaps
         if not self.include_completed:
             recurrence_set = (
-                x for x in recurrence_set
-                if (x.name=='VTODO' and
-                    x.get('STATUS', 'NEEDS-ACTION') == 'NEEDS-ACTION' and
-                    not 'COMPLETED' in x))
+                x
+                for x in recurrence_set
+                if (
+                    x.name == "VTODO"
+                    and x.get("STATUS", "NEEDS-ACTION") == "NEEDS-ACTION"
+                    and "COMPLETED" not in x
+                )
+            )
 
         if self.expand:
             ## TODO: fix wrapping, if needed
@@ -371,6 +375,5 @@ class Searcher:
             component = cal
         return component
 
-    def _check_range(self, component):
+    def _check_range(self, component: Calendar) -> bool:
         raise NotImplementedError()
-    
