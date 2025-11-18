@@ -22,7 +22,7 @@ types_factory = TypesFactory()
 ## but bool(x) will always return True.  I'd like to verify
 ## that a generator is not empty, without side effects.
 ## This seems to be some sort of a work-around
-def peek(g: Iterable):
+def peek(g: Iterable) -> Union[bool, Iterable]:
     if not isinstance(g, Iterator):
         return bool(g) and g
     try:
