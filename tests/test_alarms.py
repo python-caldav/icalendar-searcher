@@ -161,7 +161,7 @@ def test_todo_with_alarm_relative_to_due() -> None:
     alarm.add("action", "EMAIL")
     alarm.add("trigger", timedelta(days=-1))
     alarm.add("description", "Report due tomorrow!")
-    alarm['TRIGGER'].params['RELATED'] = 'END'
+    alarm["TRIGGER"].params["RELATED"] = "END"
     task.add_component(alarm)
 
     cal = Calendar()
@@ -358,7 +358,7 @@ def test_alarm_trigger_related_end() -> None:
     alarm = Alarm()
     alarm.add("action", "DISPLAY")
     alarm.add("trigger", timedelta(0))
-    alarm['TRIGGER'].params['RELATED'] = 'END'
+    alarm["TRIGGER"].params["RELATED"] = "END"
     # Note: TRIGGER can have RELATED parameter (START or END)
     # For this test, we assume it's related to END
     event.add_component(alarm)
