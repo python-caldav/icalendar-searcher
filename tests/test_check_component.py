@@ -5,7 +5,7 @@ from icalendar import Calendar, Event
 from icalendar_searcher import Searcher, peek
 
 
-def test_check_empty():
+def test_check_empty() -> None:
     searcher = Searcher(start=datetime(1970, 1, 1), end=datetime.now())
 
     ## TODO: icalendar7 (not released yet) has some
@@ -19,7 +19,7 @@ def test_check_empty():
     assert not searcher.check_component(empty_calendar)
 
 
-def test_filter_component_types():
+def test_filter_component_types() -> None:
     searcher = Searcher(todo=True)
     cal = Calendar()
     comp = Event()
@@ -28,7 +28,7 @@ def test_filter_component_types():
     assert not searcher.check_component(cal)
 
 
-def test_peek():
+def test_peek() -> None:
     assert peek(["a", "b", "c"])
     assert "b" in peek(["a", "b", "c"])
     assert peek([]) is False
