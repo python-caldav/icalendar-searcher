@@ -1,11 +1,12 @@
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Union
+from recurring_ical_events import DATE_MAX_DT, DATE_MIN_DT
 
 import recurring_ical_events
-from icalendar import Calendar, Component, Timezone
+from icalendar import Calendar, Component, Timezone, error
 from icalendar.prop import TypesFactory
 
 if TYPE_CHECKING:
@@ -17,15 +18,39 @@ if TYPE_CHECKING:
 types_factory = TypesFactory()
 
 
+## Helper to normalize date/datetime for comparison
+## (I feel this one is duplicated over many projects ...)
+def _normalize_dt(dt_value):
+    """Convert date to datetime for comparison, or return datetime as-is with timezone."""
+    if dt_value is None:
+        return None
+    ## If it's a date (not datetime), convert to datetime at midnight
+    if hasattr(dt_value, "year") and not hasattr(dt_value, "hour"):
+        from datetime import time
+        return datetime.combine(dt_value, time.min).astimezone()
+    ## TODO: we should probably do some research on the default calendar timezone,
+    ## which may not be the same as the local timezone ... uh ... timezones are
+    ## difficult.
+    return dt_value.astimezone()
+
+
+## TODO: Find a better name for this one.  peek is a terrible name.
 ## Helper - generators are generally more neat than lists,
 ## but bool(x) will always return True.  I'd like to verify
 ## that a generator is not empty, without side effects.
 ## This seems to be some sort of a work-around
-def peek(g: Iterable) -> bool | Iterable:
+def peek(g: Iterable, _debug_print_peek: bool=False) -> Union[bool, Iterable]:
+    """This method will return False if it's not possible to get an
+    item from the iterable (which can only be done by utilizing
+    `next`).  It will then return a new generator that behaves like
+    the original generator (like if `next` wasn't used).
+    """
     if not isinstance(g, Iterator):
         return bool(g) and g
     try:
         my_value = next(g)
+        if _debug_print_peek:
+            print(my_value)
         return chain((my_value,), g)
     except StopIteration:
         return False
@@ -79,11 +104,16 @@ class Searcher:
 
     If ``expand`` is set to True, recurring objects will be expanded
     into reccurence objects for the time period specified by ``start``
-    and ``end``.
+    and ``end``.  Generators are used, so ``expand`` may even work
+    without ``start`` and ``end`` set if care is taken
+    (i.e. converting the generator to a list may cause problems)
 
     Unless you now what you are doing, ``expand`` should probably be
-    set to true - but since ``expand`` can only be combined with a
-    start and end, it's by default set to false.
+    set to true, and start and end should be given and shouldn't be
+    too far away from each other.  Currently the sorting algorithm
+    will blow up if the expand yields infinite number of events.  It
+    may probably blow up even if expand yields millions of events.  Be
+    careful.
 
     For filtering an icalendar instance ``mycal`` containing a
     VCALENDAR with multiple independent events, one may do
@@ -179,22 +209,34 @@ class Searcher:
         self._sort_keys.append((key, reversed))
 
     def check_component(
-        self, component: Union["Calendar", "CalendarObjectResource"]
+        self,
+        component: Union["Calendar", "CalendarObjectResource"],
+        _ignore_rrule_and_time: bool=False,
     ) -> Union["Calendar", "CalendarObjectResource"]:
-        """
-        Checks if one component (or recurrence set) matches the filters.  If the component parameter is a calendar containing several independent components, an Exception may be raised.  The
+        """Checks if one component (or recurrence set) matches the filters.  If the component parameter is a calendar containing several independent components, an Exception may be raised, though recurrence sets should be suppored.
 
-        * On a match, the component will be returned, otherwise
-          ``None`` or ``False``.
-        * If a time specification is given and the component given is a
-          recurring component, it will be expanded internally to check if
-          it matches the given time specification.
-        * If ``self.expand`` is set and we have a match, the expanded
-          recurrence set matching the time specification is returned.
-          If ``self.expand`` is False, the original component parameter
-          will be returned on a match.
+        * If there is no match, ``None`` or ``False`` will be returned
+          (the exact return value is currently not clearly defined,
+          but ``bool(return_value)`` should yield False).
+
+        * If a time specification is given and the component given is
+          a recurring component, it will be expanded internally to
+          check if it matches the given time specification.
+        
+        * If there is a match, the component should be returned
+          (wrapped in a tuple) - unless ``expand`` is set, in which
+          case all matching recurrences will be returned (as a
+          generator object).
         """
         comp = self._unwrap(component)
+
+        ## Ensure timezone is set.  Ensure start and end are datetime objects.
+        for attr in ('start', 'end'):
+            value = getattr(self, attr)
+            if value:
+                if not isinstance(value, datetime):
+                    raise NotImplementedError("Date-range searches not supported yet; use datetime")
+                setattr(self, attr, _normalize_dt(value))
         ## Ignore everything except the first non-timezone component
         ## found ... and it's recurrence set
         not_tz_components = (x for x in comp.subcomponents if not isinstance(x, Timezone))
@@ -202,13 +244,67 @@ class Searcher:
             first = next(not_tz_components)
         except StopIteration:
             return None
+
+        ## comp.subcomponents should typically contain one component.
+        ## if there are mroe components, it should be a recurrence set
+        ## one of the things identifying a recurrence set is that the
+        ## uid is the same for all components in the set
+        if any(x for x in comp.subcomponents
+                 if not isinstance(x, Timezone) and x["uid"] != first["uid"]):
+            raise ValueError("Input parameter component is supposed to contain a single component or a recurrence set - but multiple UIDs found")
+
+        ## A recurrence set should always be one "master" with
+        ## rrule-id set, followed by zero or more objects without
+        ## rrule-id but with recurrence-id set
+        if len(comp.subcomponents)>1:
+            assert 'rrule' in comp.subcomponents[0]
+            assert all ('recurrence-id' in x for x in comp.subcomponents[1:])
+            assert all ('rrule' not in x for x in  comp.subcomponents[1:])
+        
+        ## recurrence_set is our internal generator containing
+        ## everything that hasn't been filtered out yet (in most
+        ## cases, the generator will yield either one or zero
+        ## components - but recurrences are tricky).  Since
+        ## not_tz_components is already lacking one element, we reset
+        ## it to comp.subcomponents
+        recurrence_set = comp.subcomponents
+
+        ## Recurrences may be a night-mare.
+        ## I'm not sure if this is very well thought through, but my thoughts now are:
+        
+        ## 1) we need to check if the not-expanded base element
+        ## matches any non-date-related search-filters before doing
+        ## anything else.  We do this with a recursive call with an
+        ## internal parameter _ignore_rrule_and_time set.
+        
+        ## 2) If the base element does not match, we may probably skip
+        ## expansion (only problem I can see with it is some filtering
+        ## like "show me all events happening on a Monday" - which is
+        ## anyway not supported as for now).  It's important to skip
+        ## expansion, otherwise we may end up doing an infinite (or
+        ## very-huge) expansion just to verify that we can return
+        ## None/False
+        
+        ## 3) if the base element does not match, there may still be
+        ## special cases matching.  We solve this by running the
+        ## filter logics on all but the
+        
+        ## 4) if the base element matches, we may need to expand it
+        if 'rrule' in first and not _ignore_rrule_and_time:
+            ## TODO: implement logic above
+            base_element_match = self.check_component(first, _ignore_rrule_and_time=True)
+            if not base_element_match:
+                ## Base element is to be ignored.  not_tz_components
+                ## is already missing the base element.
+                recurrence_set = not_tz_components
+
+        ## Restrict the recurrence set to only same uid (TODO: if
+        ## anything else is given, we may want to raise a ValueError)
         recurrence_set = (
             x
-            for x in comp.subcomponents
+            for x in recurrence_set
             if not isinstance(x, Timezone) and x["uid"] == first["uid"]
         )
-        ## TODO: we should consider raising a ValueError if there exists
-        ## independent objects in the calendar given
 
         ## self.include_completed should default to False if todo is explicity set,
         ## otherwise True
@@ -224,7 +320,7 @@ class Searcher:
         ## correct solution from the start: 1) if any flags are True,
         ## then consider flags set as None as False.  2) if any flags
         ## are still None, then consider those to be True.  3) List
-        ## the flags that are True as acceptable component types.
+        ## the flags that are True as acceptable component types:
 
         comptypesl = ("todo", "event", "journal")
         if any(getattr(self, x) for x in comptypesl):
@@ -238,20 +334,20 @@ class Searcher:
 
         comptypesu = set([f"V{x.upper()}" for x in comptypesl if getattr(self, x)])
 
-        ## OPTIMIZATION TODO - first we do the expand, then we filter.
-        ## This guarantees correctness, but it's very bloated if it's
-        ## needed to create millions of recurrences that do not pass
-        ## filtering.  Perhaps the right thing would be to check the
-        ## master/template event and discard it if it doesn't match
-        ## the non-time-filers?  I can't see any cases where this
-        ## would cause failures?.
-        if "rrule" in first and self.start and self.end:
-            recur = recurring_ical_events.of(recurrence_set, comptypesu)
+        if not _ignore_rrule_and_time and "rrule" in first:
+            cal = Calendar()
+            for x in recurrence_set:
+                cal.add_component(x)
+            recur = recurring_ical_events.of(cal, comptypesu)
+            if not self.start:
+                self.start = _normalize_dt(DATE_MIN_DT)
+            if not self.end:
+                self.end = _normalize_dt(DATE_MAX_DT)
             recurrence_set = recur.between(self.start, self.end)
 
         ## OPTIMIZATION TODO: If the object was recurring, we should
         ## probably trust recur.between to do the right thing?
-        if self.start or self.end:
+        if not _ignore_rrule_and_time and (self.start or self.end):
             recurrence_set = (x for x in recurrence_set if self._check_range(x))
 
         ## This if is just to save some few CPU cycles - skip filtering if it's not needed
@@ -264,18 +360,24 @@ class Searcher:
                 x
                 for x in recurrence_set
                 if (
-                    x.name == "VTODO"
-                    and x.get("STATUS", "NEEDS-ACTION") == "NEEDS-ACTION"
-                    and "COMPLETED" not in x
+                    x.name != "VTODO"
+                    or (
+                        x.get("STATUS", "NEEDS-ACTION") == "NEEDS-ACTION"
+                        and "COMPLETED" not in x
+                    )
                 )
             )
+
+        ## Apply property filters
+        if self._property_filters or self._property_operator:
+            recurrence_set = (x for x in recurrence_set if self._check_property_filters(x))
 
         if self.expand:
             ## TODO: fix wrapping, if needed
             return peek(recurrence_set)
         else:
             if next(recurrence_set, None):
-                return component
+                return (component,)
             else:
                 return None
 
@@ -375,5 +477,149 @@ class Searcher:
             component = cal
         return component
 
-    def _check_range(self, component: Calendar) -> bool:
-        raise NotImplementedError()
+    def _check_range(self, component: Component) -> bool:
+        """Check if a component falls within the time range specified by self.start and self.end.
+
+        Implements RFC4791 section 9.9 time-range filtering logic for VEVENT, VTODO, and VJOURNAL.
+
+        :param component: A single calendar component (VEVENT, VTODO, or VJOURNAL)
+        :return: True if the component matches the time range, False otherwise
+        """
+        comp_name = component.name
+
+        ## The logic below should correspond neatly with RFC4791 section 9.9
+
+        ## fetch comp_end and comp_start
+        ## note that comp_end is DTSTART + DURATION if DURATION is given.
+        ## note that for tasks, comp_end is set to DUE
+        ## This logic is all handled by the start/end properties in the
+        ## icalendar library, and makes the logic here less complex
+
+        try:
+            comp_end = _normalize_dt(component.end)
+        except error.IncompleteComponent:
+            comp_end = None
+
+        try:
+            comp_start = _normalize_dt(component.start)
+        except error.IncompleteComponent:
+            if component.name == 'VEVENT':
+                ## for events, DTSTART is mandatory
+                raise
+            comp_start = None
+
+        if comp_name == "VEVENT":
+            ## comp_start is always set.
+            if not comp_end and isinstance(comp_start, datetime):
+                ## if comp_end is not set and comp_start is a datetime,
+                ## consider zero duration
+                comp_end = comp_start
+            elif not comp_end:
+                ## if comp_end is not set and comp_start is a datetime,
+                ## consider one day duration
+                comp_end = comp_start + timedelta(day=1)
+                ## TODO: What time of the day does the day change?
+                ## Time zones are difficult!  TODO: as for now,
+                ## self.start is a datetime, but in the future dates
+                ## should be allowed as well.  Then the time zone
+                ## problem for full-day events is at least simplified.
+
+        elif comp_name == "VTODO":
+            ## There is a long matrix for VTODO in the RFC, and it
+            ## may seem complicated, but it isn't that bad:
+            
+            ## * A task with DTSTART and DURATION is equivalent with a
+            ##   task with DTSTART and DUE.  This complexity is
+            ##   already handled by the icalendar library, so all rows
+            ##   in the matrix where VTODO has the DURATION property?"
+            ##   is Y may be removed.
+            ##
+            ## * If either DUE or DTSTART is set, use it.
+            if comp_end and not comp_start:
+                comp_start = comp_end
+            if comp_start and not comp_end:
+                comp_end = comp_start
+
+            ## * If both created/completed is set and
+            ##   comp_start/comp_end is not set, then use those instead
+            if not comp_start:
+                if 'CREATED' in component:
+                    comp_start = _normalize_dt(component['CREATED'].dt)
+                if 'COMPLETED' in component:
+                    comp_end = _normalize_dt(component['COMPLETED'].dt)
+ 
+            ## * A task may have a DUE before the DTSTART.  The
+            ##   complicated OR-logic in the table may be eliminated
+            ##   by swapping start/end if necessary:
+            if comp_end and comp_start and comp_end < comp_start:
+                tmp = comp_start
+                comp_start = comp_end
+                comp_end = comp_start
+
+            ## * A task with no timestamps is considered to be done "at any or all days".
+            if not comp_end and not comp_start:
+                comp_start = _normalize_dt(DATE_MIN_DT)
+                comp_end = _normalize_dt(DATE_MAX_DT)
+
+        elif comp_name == "VJOURNAL":
+            if not comp_start:
+                ## Journal without DTSTART doesn't match time ranges
+                return False
+            if isinstance(comp_start, datetime):
+                comp_end = comp_start
+            else:
+                comp_end = comp_start + timedelta(days=1)
+
+        if comp_start == comp_end:
+            ## Now the match requirement is start <= comp_end
+            ## while otherwise the match requirement is start < comp_end
+            ## minor detail, we'll work around it:
+            comp_end += timedelta(seconds = 1)
+    
+        ## After the logic above, all rows in the matrix boils down to
+        ## this: (we could reduce it even more by defaulting
+        ## self.start and self.end to DATE_MIN_DT etc)
+        if self.start and self.end and comp_end:
+            return self.start < comp_end and self.end > comp_start
+        elif self.end:
+            return self.end > comp_start
+        elif self.start and comp_end:
+            return self.start < comp_end
+        return True
+
+    def _check_property_filters(self, component: Component) -> bool:
+        """Check if a component matches all property filters.
+
+        :param component: A single calendar component
+        :return: True if the component matches all property filters, False otherwise
+        """
+        for key, operator in self._property_operator.items():
+            if operator == "undef":
+                ## Property should NOT be defined
+                if key in component:
+                    return False
+            elif operator == "contains":
+                ## Property should contain the filter value (substring match)
+                if key not in component:
+                    return False
+                comp_value = component[key]
+                filter_value = self._property_filters[key]
+                ## Convert to string for substring matching
+                comp_str = str(comp_value)
+                filter_str = str(filter_value)
+                if filter_str.lower() not in comp_str.lower():
+                    return False
+            elif operator == "==":
+                ## Property should exactly match the filter value
+                if key not in component:
+                    return False
+                comp_value = component[key]
+                filter_value = self._property_filters[key]
+                ## Compare the values
+                if comp_value != filter_value:
+                    return False
+            else:
+                ## This shouldn't happen as add_property_filter validates operators
+                raise NotImplementedError(f"Operator {operator} not implemented")
+
+        return True

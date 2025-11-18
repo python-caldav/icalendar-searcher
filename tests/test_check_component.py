@@ -66,7 +66,8 @@ def test_filter_component_types() -> None:
     for searcher in (Searcher(), Searcher(event=True), Searcher(todo=False)):
         assert searcher.check_component(cal)
 
-
+## peek() was defined to support return values evaluating into False,
+## but still support generators
 def test_peek() -> None:
     assert peek(["a", "b", "c"])
     assert "b" in peek(["a", "b", "c"])
