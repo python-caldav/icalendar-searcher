@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import pytest
 from icalendar import Calendar, Event, Todo
 
 from icalendar_searcher import Searcher, _iterable_or_false
@@ -39,17 +40,16 @@ def test_include_completed() -> None:
 
 
 def test_check_empty() -> None:
+    """Test that an empty calendar (no components) raises a ValueError."""
     searcher = Searcher(start=datetime(1970, 1, 1), end=datetime.now())
 
-    ## TODO: icalendar7 (not released yet) has some
-    ## factory methods for creating valid VCALENDAR
-    ## objects (IIRC).
+    # Create an empty calendar (no VEVENT, VTODO, or VJOURNAL components)
     empty_calendar = Calendar()
 
-    ## An empty calendar should yield nothing (currently
-    ## the docstring says it should return None, but [] is probably
-    ## equally acceptable)
-    assert not searcher.check_component(empty_calendar)
+    # An empty calendar should raise a ValueError
+    # See _validate_and_normalize_component() at line 498
+    with pytest.raises(ValueError, match="Empty component"):
+        searcher.check_component(empty_calendar)
 
 
 def test_filter_component_types() -> None:

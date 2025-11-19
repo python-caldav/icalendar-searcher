@@ -1,7 +1,7 @@
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from itertools import chain
+from itertools import chain, tee
 from typing import TYPE_CHECKING, Any, Union
 
 import recurring_ical_events
@@ -38,20 +38,26 @@ def _normalize_dt(dt_value: date | datetime) -> datetime:
 ## Helper - generators are generally more neat than lists,
 ## but bool(x) will always return True.  I'd like to verify
 ## that a generator is not empty, without side effects.
-## This seems to be some sort of a work-around
 def _iterable_or_false(g: Iterable, _debug_print_peek: bool = False) -> bool | Iterable:
     """This method will return False if it's not possible to get an
     item from the iterable (which can only be done by utilizing
-    `next`).  It will then return a new generator that behaves like
-    the original generator (like if `next` wasn't used).
+    `next`).  It will then return a new iterator that behaves like
+    the original iterator (like if `next` wasn't used).
+
+    Uses itertools.tee to create two independent iterators: one for
+    checking if the iterator is empty, and one to return.
     """
     if not isinstance(g, Iterator):
         return bool(g) and g
+
+    # Create two independent iterators from the input
+    check_it, result_it = tee(g)
+
     try:
-        my_value = next(g)
+        my_value = next(check_it)
         if _debug_print_peek:
             print(my_value)
-        return chain((my_value,), g)
+        return result_it  # Return the untouched iterator
     except StopIteration:
         return False
 
@@ -211,10 +217,14 @@ class Searcher:
 
     def check_component(
         self,
-        component: Union["Calendar", "CalendarObjectResource"],
+        component: Union["Calendar", "Component", "CalendarObjectResource"],
+        expand_only: bool = False,
         _ignore_rrule_and_time: bool = False,
-    ) -> Union["Calendar", "CalendarObjectResource"]:
-        """Checks if one component (or recurrence set) matches the filters.  If the component parameter is a calendar containing several independent components, an Exception may be raised, though recurrence sets should be suppored.
+    ) -> Iterable["Component"]:
+        """Checks if one component (or recurrence set) matches the
+        filters.  If the component parameter is a calendar containing
+        several independent components, an Exception may be raised,
+        though recurrence sets should be suppored.
 
         * If there is no match, ``None`` or ``False`` will be returned
           (the exact return value is currently not clearly defined,
@@ -228,8 +238,26 @@ class Searcher:
           (wrapped in a tuple) - unless ``expand`` is set, in which
           case all matching recurrences will be returned (as a
           generator object).
+
+        :param component: Todo, Event, Calendar or such
+        :param expand_only: Don't do any filtering, just expand
+
         """
-        comp = self._unwrap(component)
+        ## For consistant and predictable return value, we need to
+        ## transform the component in the very start.  We need to make
+        ## it into a list so we can iterate on it without throwing
+        ## away data.  TODO: This will break badly if the
+        ## component already is a generator with infinite amount of
+        ## recurrences.  It should be possible to fix this in a smart
+        ## way.  I.e., make a new wrappable class ListLikeGenerator
+        ## that stores the elements we've taken out from the
+        ## generator.  Such a class would also eliminate the need of
+        ## _generator_or_false.
+        orig_recurrence_set = self._validate_and_normalize_component(component)
+        
+        ## Early return if no work needed
+        if expand_only and not self.expand:
+            return orig_recurrence_set
 
         ## Ensure timezone is set.  Ensure start and end are datetime objects.
         for attr in ("start", "end", "alarm_start", "alarm_end"):
@@ -238,42 +266,15 @@ class Searcher:
                 if not isinstance(value, datetime):
                     raise NotImplementedError("Date-range searches not supported yet; use datetime")
                 setattr(self, attr, _normalize_dt(value))
-        ## Ignore everything except the first non-timezone component
-        ## found ... and it's recurrence set
-        not_tz_components = (x for x in comp.subcomponents if not isinstance(x, Timezone))
-        try:
-            first = next(not_tz_components)
-        except StopIteration:
-            return None
 
-        ## comp.subcomponents should typically contain one component.
-        ## if there are mroe components, it should be a recurrence set
-        ## one of the things identifying a recurrence set is that the
-        ## uid is the same for all components in the set
-        if any(
-            x
-            for x in comp.subcomponents
-            if not isinstance(x, Timezone) and x["uid"] != first["uid"]
-        ):
-            raise ValueError(
-                "Input parameter component is supposed to contain a single component or a recurrence set - but multiple UIDs found"
-            )
 
-        ## A recurrence set should always be one "master" with
-        ## rrule-id set, followed by zero or more objects without
-        ## rrule-id but with recurrence-id set
-        if len(comp.subcomponents) > 1:
-            assert "rrule" in comp.subcomponents[0]
-            assert all("recurrence-id" in x for x in comp.subcomponents[1:])
-            assert all("rrule" not in x for x in comp.subcomponents[1:])
-
-        ## recurrence_set is our internal generator containing
+        ## recurrence_set is our internal generator/iterator containing
         ## everything that hasn't been filtered out yet (in most
         ## cases, the generator will yield either one or zero
-        ## components - but recurrences are tricky).  Since
-        ## not_tz_components is already lacking one element, we reset
-        ## it to comp.subcomponents
-        recurrence_set = comp.subcomponents
+        ## components - but recurrences are tricky).  orig_recurrence_set
+        ## is a list, so iterations on recurrence_set will not affect
+        ## orig_recurrence_set
+        recurrence_set = orig_recurrence_set
 
         ## Recurrences may be a night-mare.
         ## I'm not sure if this is very well thought through, but my thoughts now are:
@@ -296,19 +297,13 @@ class Searcher:
         ## filter logics on all but the
 
         ## 4) if the base element matches, we may need to expand it
-        if "rrule" in first and not _ignore_rrule_and_time:
+        first = orig_recurrence_set[0]
+        if not expand_only and "rrule" in first and not _ignore_rrule_and_time:
             ## TODO: implement logic above
             base_element_match = self.check_component(first, _ignore_rrule_and_time=True)
             if not base_element_match:
-                ## Base element is to be ignored.  not_tz_components
-                ## is already missing the base element.
-                recurrence_set = not_tz_components
-
-        ## Restrict the recurrence set to only same uid (TODO: if
-        ## anything else is given, we may want to raise a ValueError)
-        recurrence_set = (
-            x for x in recurrence_set if not isinstance(x, Timezone) and x["uid"] == first["uid"]
-        )
+                ## Base element is to be ignored.  recurrence_set is still a list
+                recurrence_set = recurrence_set[1:]  # Remove first element (base), keep exceptions
 
         ## self.include_completed should default to False if todo is explicity set,
         ## otherwise True
@@ -339,35 +334,28 @@ class Searcher:
         comptypesu = set([f"V{x.upper()}" for x in comptypesl if getattr(self, x)])
 
         if not _ignore_rrule_and_time and "rrule" in first:
-            cal = Calendar()
-            for x in recurrence_set:
-                cal.add_component(x)
-            recur = recurring_ical_events.of(cal, comptypesu)
-            if not self.start:
-                self.start = _normalize_dt(DATE_MIN_DT)
-            if not self.end:
-                self.end = _normalize_dt(DATE_MAX_DT)
-            recurrence_set = recur.between(self.start, self.end)
+            recurrence_set = self._expand_recurrences(recurrence_set, comptypesu)
 
-        ## OPTIMIZATION TODO: If the object was recurring, we should
-        ## probably trust recur.between to do the right thing?
-        if not _ignore_rrule_and_time and (self.start or self.end):
-            recurrence_set = (x for x in recurrence_set if self._check_range(x))
+        if not expand_only:
+            ## OPTIMIZATION TODO: If the object was recurring, we should
+            ## probably trust recur.between to do the right thing?
+            if not _ignore_rrule_and_time and (self.start or self.end):
+                recurrence_set = (x for x in recurrence_set if self._check_range(x))
 
-        ## This if is just to save some few CPU cycles - skip filtering if it's not needed
-        if not all(getattr(self, x) for x in comptypesl):
-            recurrence_set = (x for x in recurrence_set if x.name in comptypesu)
+            ## This if is just to save some few CPU cycles - skip filtering if it's not needed
+            if not all(getattr(self, x) for x in comptypesl):
+                recurrence_set = (x for x in recurrence_set if x.name in comptypesu)
 
-        ## Filter based on include_completed setting
-        recurrence_set = (x for x in recurrence_set if self._check_completed_filter(x))
+            ## Filter based on include_completed setting
+            recurrence_set = (x for x in recurrence_set if self._check_completed_filter(x))
 
-        ## Apply property filters
-        if self._property_filters or self._property_operator:
-            recurrence_set = (x for x in recurrence_set if self._check_property_filters(x))
+            ## Apply property filters
+            if self._property_filters or self._property_operator:
+                recurrence_set = (x for x in recurrence_set if self._check_property_filters(x))
 
-        ## Apply alarm filters
-        if not _ignore_rrule_and_time and (self.alarm_start or self.alarm_end):
-            recurrence_set = (x for x in recurrence_set if self._check_alarm_range(x))
+            ## Apply alarm filters
+            if not _ignore_rrule_and_time and (self.alarm_start or self.alarm_end):
+                recurrence_set = (x for x in recurrence_set if self._check_alarm_range(x))
 
         if self.expand:
             ## TODO: fix wrapping, if needed
@@ -473,6 +461,66 @@ class Searcher:
             cal.add_component(component)
             component = cal
         return component
+
+    def _validate_and_normalize_component(self, component: Union["Calendar", "Component", "CalendarObjectResource"]) -> list["Component"]:
+        """This method serves two purposes:
+
+        1) Be liberal in what "component" it accepts and return
+        something well-defined.  For instance, coponent may be a
+        wrapped object (caldav.Event), an icalendar.Calendar or an
+        icalendar.Event.  The return value will always be a list of
+        icalendar components (i.e. Event), and Timezone components will
+        be removed.
+
+        2) Do some verification that the "component" is as expected
+        and raise a ValueError if not.  The "component" should either
+        be one single component or a recurrence set.  A recurrence set
+        should conform to those rules:
+
+        2.1) All components in the recurrence set should have the same UID
+
+        2.2) First element ("master") of the recurrence set should have the RRULE
+        property set
+
+        2.3) Any following elements of a recurrence set ("exception
+        recurrences") should have the RECURRENCE-ID property set.
+
+        2.4) (there are more properties that may only be set in the
+        master or only in the recurrences, but currently we don't do
+        more checking than this)
+
+        As for now, we do not support component to be a generator or a
+        list, and things will blow up if component.subcomponents is a
+        generator yielding infinite or too many subcomponents.
+
+        """
+        
+        component = self._unwrap(component)
+        components = [x for x in component.subcomponents if not isinstance(x, Timezone)]
+
+        
+        ## We shouldn't get here.  There should always be a valid component.
+        if not len(components):
+            raise ValueError("Empty component?")
+        first = components[0]
+
+        ## A recurrence set should always be one "master" with
+        ## rrule-id set, followed by zero or more objects without
+        ## rrule-id but with recurrence-id set
+        if len(components) > 1:
+            if not  "rrule" in components[0] or not all("recurrence-id" in x for x in components[1:]) or any("rrule" in x for x in components[1:]):
+                raise ValueError("Expected a valid recurrence set, with one master component followed with special recurrences")
+
+        ## components should typically be a list with only one component.
+        ## if there are more components, it should be a recurrence set
+        ## one of the things identifying a recurrence set is that the
+        ## uid is the same for all components in the set
+        if any(x for x in components if x["uid"] != first["uid"]):
+            raise ValueError(
+                "Input parameter component is supposed to contain a single component or a recurrence set - but multiple UIDs found"
+            )
+        return components
+        
 
     def _check_range(self, component: Component) -> bool:
         """Check if a component falls within the time range specified by self.start and self.end.
@@ -599,6 +647,17 @@ class Searcher:
             component.get("STATUS", "NEEDS-ACTION") == "NEEDS-ACTION"
             and "COMPLETED" not in component
         )
+
+    def _expand_recurrences(self, recurrence_set, comptypesu):
+        cal = Calendar()
+        for x in recurrence_set:
+            cal.add_component(x)
+        recur = recurring_ical_events.of(cal, comptypesu)
+        if not self.start:
+            self.start = _normalize_dt(DATE_MIN_DT)
+        if not self.end:
+            self.end = _normalize_dt(DATE_MAX_DT)
+        return recur.between(self.start, self.end)
 
     ## DISCLAIMER: AI-generated code.  But LGTM!
     def _check_property_filters(self, component: Component) -> bool:
