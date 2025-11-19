@@ -173,9 +173,9 @@ def test_expand_only_expands_within_searcher_range() -> None:
     assert len(occurrences) == 28, "Should have 28 daily occurrences in February"
 
     # All occurrences should have recurrence-id set
-    assert all (x for x in occurrences if 'RECURRENCE-ID' in x)
+    assert all(x for x in occurrences if "RECURRENCE-ID" in x)
     # No occurrences should have rrule set
-    assert not any (x for x in occurrences if 'RRULE' in x)
+    assert not any(x for x in occurrences if "RRULE" in x)
 
     # Verify first and last occurrences are in February
     first_occurrence = occurrences[0]

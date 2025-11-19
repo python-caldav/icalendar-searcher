@@ -333,7 +333,7 @@ class Searcher:
         comptypesu = set([f"V{x.upper()}" for x in comptypesl if getattr(self, x)])
 
         ## if expand_only, expand all comptypes, otherwise only the comptypes specified in the filters
-        comptypes_for_expansion = ['VTODO', 'VEVENT', 'VJOURNAL'] if expand_only else comptypesu
+        comptypes_for_expansion = ["VTODO", "VEVENT", "VJOURNAL"] if expand_only else comptypesu
 
         if not _ignore_rrule_and_time and "rrule" in first:
             recurrence_set = self._expand_recurrences(recurrence_set, comptypes_for_expansion)
