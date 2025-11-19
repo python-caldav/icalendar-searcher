@@ -297,7 +297,7 @@ class Searcher:
 
         ## 4) if the base element matches, we may need to expand it
         first = orig_recurrence_set[0]
-        if not expand_only and "rrule" in first and not _ignore_rrule_and_time:
+        if not expand_only and "RRULE" in first and not _ignore_rrule_and_time:
             ## TODO: implement logic above
             base_element_match = self.check_component(first, _ignore_rrule_and_time=True)
             if not base_element_match:
@@ -335,7 +335,7 @@ class Searcher:
         ## if expand_only, expand all comptypes, otherwise only the comptypes specified in the filters
         comptypes_for_expansion = ["VTODO", "VEVENT", "VJOURNAL"] if expand_only else comptypesu
 
-        if not _ignore_rrule_and_time and "rrule" in first:
+        if not _ignore_rrule_and_time and "RRULE" in first:
             recurrence_set = self._expand_recurrences(recurrence_set, comptypes_for_expansion)
 
         if not expand_only:
@@ -483,7 +483,7 @@ class Searcher:
 
         2.1) All components in the recurrence set should have the same UID
 
-        2.2) First element ("master") of the recurrence set should have the RRULE
+        2.2) First element ("master") of the recurrence set may have the RRULE
         property set
 
         2.3) Any following elements of a recurrence set ("exception
@@ -512,12 +512,12 @@ class Searcher:
         ## rrule-id but with recurrence-id set
         if len(components) > 1:
             if (
-                "rrule" not in components[0]
+                ("RRULE" not in components[0] and "RECURRENCE-ID" not in components[0])
                 or not all("recurrence-id" in x for x in components[1:])
-                or any("rrule" in x for x in components[1:])
+                or any("RRULE" in x for x in components[1:])
             ):
                 raise ValueError(
-                    "Expected a valid recurrence set, with one master component followed with special recurrences"
+                    "Expected a valid recurrence set, either with one master component followed with special recurrences or with only occurrences"
                 )
 
         ## components should typically be a list with only one component.
