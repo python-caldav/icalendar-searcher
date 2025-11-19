@@ -3,29 +3,47 @@ repos:
    # Ruff version.
    rev: v0.14.5
    hooks:
-    # Run the linter.
-    - id: ruff-check
+    # Run the linter with auto-fix on commit
+    - id: ruff
       args:
        - "--fix"
-    # Run the formatter.
+      stages: [commit]
+    # Run the formatter on commit
     - id: ruff-format
+      stages: [commit]
 
  - repo: https://github.com/pre-commit/pre-commit-hooks
    rev: v6.0.0
    hooks:
     - id: trailing-whitespace
+      stages: [commit]
     - id: end-of-file-fixer
+      stages: [commit]
     - id: check-yaml
+      stages: [commit]
     - id: check-toml
+      stages: [commit]
     - id: check-ast
+      stages: [commit]
     - id: mixed-line-ending
       args: [--fix=lf]
+      stages: [commit]
 
  - repo: local
    hooks:
-    - id: pytest
+    # Run ruff check without fixes on push (to catch any issues)
+    - id: ruff-check-push
+      name: Ruff check (no fixes)
+      entry: poetry run ruff check
+      language: system
+      types: [python]
+      pass_filenames: false
+      stages: [push]
+    # Run full test suite on push
+    - id: pytest-push
       name: Run pytest
       entry: poetry run pytest
       language: system
       pass_filenames: false
       always_run: true
+      stages: [push]
