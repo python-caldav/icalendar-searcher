@@ -653,7 +653,15 @@ class Searcher:
             and "COMPLETED" not in component
         )
 
-    def _expand_recurrences(self, recurrence_set, comptypesu):
+    def _expand_recurrences(
+        self, recurrence_set: list[Component], comptypesu: set[str]
+    ) -> Iterable[Component]:
+        """Expand recurring events within the searcher's time range.
+
+        :param recurrence_set: List of calendar components to expand
+        :param comptypesu: Set of component type strings (e.g., {"VEVENT", "VTODO"})
+        :return: Iterable of expanded component instances
+        """
         cal = Calendar()
         for x in recurrence_set:
             cal.add_component(x)
