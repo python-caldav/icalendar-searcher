@@ -57,10 +57,10 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Install poetry and poetry-dynamic-versioning
+    - name: Install build tools
       run: |
         python -m pip install --upgrade pip
-        pip install poetry poetry-dynamic-versioning[plugin]
+        pip install build
 
     - name: Verify version from git tags
       run: |
@@ -69,14 +69,14 @@ jobs:
 
     - name: Build package
       run: |
-        # Build using poetry-dynamic-versioning backend
-        poetry build -vvv
+        # Build using PEP 517 with poetry-dynamic-versioning backend
+        python -m build --sdist --wheel
 
-    - name: Display version
+    - name: Display built packages
       run: |
-        poetry version
-        echo "Package version from dynamic versioning:"
-        poetry run python -c "import icalendar_searcher; print(f'Version: {icalendar_searcher.__version__ if hasattr(icalendar_searcher, \"__version__\") else \"not set\"}')" || echo "No __version__ attribute"
+        ls -lh dist/
+        echo "Verifying version in wheel metadata:"
+        unzip -p dist/*.whl */METADATA | grep "^Version:"
 
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
