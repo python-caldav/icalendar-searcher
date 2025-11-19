@@ -57,14 +57,20 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Install poetry
+    - name: Install poetry and poetry-dynamic-versioning
       run: |
         python -m pip install --upgrade pip
-        pip install poetry poetry-dynamic-versioning
+        pip install poetry poetry-dynamic-versioning[plugin]
+
+    - name: Verify version from git tags
+      run: |
+        git describe --tags --long
+        echo "Git tag detected above ^"
 
     - name: Build package
       run: |
-        poetry build
+        # Build using poetry-dynamic-versioning backend
+        poetry build -vvv
 
     - name: Display version
       run: |

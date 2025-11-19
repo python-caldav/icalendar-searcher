@@ -1,6 +1,6 @@
 [project]
 name = "icalendar-searcher"
-version = "0.1.0"
+version = "0.0.0"
 description = ""
 authors = [
     {name = "Tobias Brox",email = "tobias@redpill-linpro.com"}
@@ -19,7 +19,7 @@ Issues = "https://github.com/python-caldav/icalendar-searches/issues"
 
 [tool.poetry]
 name = "icalendar-searcher"
-version = "0.1.0"
+version = "0.0.0"
 description = "Search, filter and sort iCalendar components"
 authors = ["Tobias Brox <tobias@redpill-linpro.com>"]
 readme = "README.md"
@@ -31,6 +31,9 @@ recurring-ical-events = ">=3.8.0"
 
 [tool.poetry-dynamic-versioning]
 enable = true
+vcs = "git"
+style = "semver"
+pattern = "^v(?P<base>\\d+\\.\\d+\\.\\d+)"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
