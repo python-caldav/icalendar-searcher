@@ -2,11 +2,12 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from itertools import tee
+import logging
 from typing import TYPE_CHECKING, Any, Union
 
 import recurring_ical_events
 from icalendar import Calendar, Component, Timezone, error
-from icalendar.prop import TypesFactory
+from icalendar.prop import TypesFactory, vCategory, vText
 from recurring_ical_events import DATE_MAX_DT, DATE_MIN_DT
 
 if TYPE_CHECKING:
@@ -264,7 +265,7 @@ class Searcher:
             value = getattr(self, attr)
             if value:
                 if not isinstance(value, datetime):
-                    raise NotImplementedError("Date-range searches not supported yet; use datetime")
+                    logging.warning("Date-range searches not well supported yet; use datetime rather than dates")
                 setattr(self, attr, _normalize_dt(value))
 
         ## recurrence_set is our internal generator/iterator containing
@@ -649,12 +650,19 @@ class Searcher:
         if self.include_completed:
             return True
 
-        ## If include_completed is False, exclude completed VTODOs
-        ## Include everything that is not a VTODO, or VTODOs that are not completed
-        return component.name != "VTODO" or (
-            component.get("STATUS", "NEEDS-ACTION") == "NEEDS-ACTION"
-            and "COMPLETED" not in component
-        )
+        ## If include_completed is False, exclude completed/cancelled VTODOs
+        ## Include everything that is not a VTODO, or VTODOs that are not completed/cancelled
+        if component.name != "VTODO":
+            return True
+
+        ## For VTODOs, exclude if STATUS is COMPLETED or CANCELLED, or if COMPLETED property is set
+        status = component.get("STATUS", "NEEDS-ACTION")
+        if status in ("COMPLETED", "CANCELLED"):
+            return False
+        if "COMPLETED" in component:
+            return False
+
+        return True
 
     def _expand_recurrences(
         self, recurrence_set: list[Component], comptypesu: set[str]
@@ -673,14 +681,14 @@ class Searcher:
         for x in recurrence_set:
             cal.add_component(x)
         recur = recurring_ical_events.of(cal, components=comptypesu)
-        if not self.start:
-            self.start = _normalize_dt(DATE_MIN_DT)
-        if not self.end:
-            self.end = _normalize_dt(DATE_MAX_DT)
 
-        return recur.between(self.start, self.end)
+        # Use local variables for start/end to avoid modifying searcher state
+        start = self.start if self.start else _normalize_dt(DATE_MIN_DT)
+        end = self.end if self.end else _normalize_dt(DATE_MAX_DT)
 
-    ## DISCLAIMER: AI-generated code.  But LGTM!
+        return recur.between(start, end)
+
+    ## DISCLAIMER: partly AI-generated code.
     def _check_property_filters(self, component: Component) -> bool:
         """Check if a component matches all property filters.
 
@@ -688,6 +696,28 @@ class Searcher:
         :return: True if the component matches all property filters, False otherwise
         """
         for key, operator in self._property_operator.items():
+            filter_value = self._property_filters.get(key)
+            comp_value = component.get(key)
+            
+            ## Category needs some special handling
+            if key.lower() == 'categories' and comp_value is not None and filter_value is not None:
+                if isinstance(filter_value, vCategory):
+                    ## TODO: This special case, handling one element different from several, is a bit bad indeed
+                    if len(filter_value.cats) == 1:
+                        filter_value = str(filter_value.cats[0])
+                        if ',' in filter_value:
+                            filter_value = set(filter_value.split(','))
+                    else:
+                        filter_value = set([str(x) for x in filter_value.cats])
+                elif isinstance(filter_value, str) or isinstance(filter_value, vText):
+                    ## TODO: probably this is irrelevant dead code
+                    filter_value = str(filter_value)
+                    if ',' in filter_value:
+                        filter_value = set(filter_value.split(','))
+                elif isinstance(filter_value, Iterable):
+                    ## TODO: probably this is irrelevant dead code
+                    filter_value = set(filter_value)
+                comp_value = set([str(x) for x in comp_value.cats])
             if operator == "undef":
                 ## Property should NOT be defined
                 if key in component:
@@ -696,8 +726,12 @@ class Searcher:
                 ## Property should contain the filter value (substring match)
                 if key not in component:
                     return False
-                comp_value = component[key]
-                filter_value = self._property_filters[key]
+                if key.lower() == 'categories':
+                    if isinstance(filter_value, str):
+                        return any (filter_value in x for x in comp_value)
+                    elif isinstance(filter_value, set):
+                        return not filter_value - comp_value
+                    
                 ## Convert to string for substring matching
                 comp_str = str(comp_value)
                 filter_str = str(filter_value)
@@ -707,11 +741,15 @@ class Searcher:
                 ## Property should exactly match the filter value
                 if key not in component:
                     return False
-                comp_value = component[key]
-                filter_value = self._property_filters[key]
-                ## Compare the values
-                if comp_value != filter_value:
-                    return False
+                ## Compare the values This is tricky, as the values
+                ## may have different types.  TODO: we should add more
+                ## logic for the different property types.  Maybe get
+                ## it into the icalendar library.
+                if comp_value == filter_value:
+                    return True
+                if isinstance(filter_value, str) and isinstance(comp_value, set):
+                    return filter_value in comp_value
+                return False
             else:
                 ## This shouldn't happen as add_property_filter validates operators
                 raise NotImplementedError(f"Operator {operator} not implemented")
