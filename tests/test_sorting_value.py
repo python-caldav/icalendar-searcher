@@ -9,14 +9,24 @@ from datetime import datetime as real_datetime
 
 from icalendar import Calendar, Event, Todo
 
-import icalendar_searcher
+import icalendar_searcher.searcher
 from icalendar_searcher import Searcher
 
 
-## This is a fragile test - there is no requirement that the values turn out the way they
-## do, the only requiement is that they can be sorted correctly.  I think it would be
-## a good idea to replace this with a test that creates several events and verifies that
-## the sorting_value delivers things that can be sorted in the correct order.
+## TODO: This is a fragile test - there is no requirement that the
+## values turn out the way they do, the only requiement is that they
+## can be sorted correctly.  I think it would be a good idea to
+## replace this with a test that creates several events and verifies
+## that the sorting_value delivers things that can be sorted in the
+## correct order.
+## TODO: Currently we're only testing the passing of an
+## icalendar.Calendar object as the component.  We should also verify
+## that those works:
+##
+## 1) A wrapped Calendar object (i.e. caldav.calendarobjectresource.Event)
+##
+## 2) the icalendar.Event object directly, without being part of an
+## icalendar (this probably breaks now, but it should be acceptable)
 def test_sorting_value_mixed_types_and_reverse() -> None:
     """Check dtstart -> strftime, priority numeric, reversed summary -> bytes-inverted,
     and categories -> joined string."""
@@ -80,8 +90,8 @@ def test_special_sort_keys_isnt_overdue_and_hasnt_started(monkeypatch: Callable)
         def now(cls) -> real_datetime:
             return real_datetime(2025, 1, 2, 12, 0)
 
-    # Patch the datetime used inside the icalendar_searcher module
-    monkeypatch.setattr(icalendar_searcher, "datetime", FakeDatetime)
+    # Patch the datetime used inside the icalendar_searcher.searcher module
+    monkeypatch.setattr(icalendar_searcher.searcher, "datetime", FakeDatetime)
 
     vals = s.sorting_value(cal)
     # due < now -> isnt_overdue should be False
