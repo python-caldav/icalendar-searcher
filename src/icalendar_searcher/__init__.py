@@ -3,6 +3,7 @@
 This package provides the Searcher class for filtering, sorting, and
 expanding calendar components (VEVENT, VTODO, VJOURNAL).
 """
+
 ## for python 3.9 support
 from __future__ import annotations
 
