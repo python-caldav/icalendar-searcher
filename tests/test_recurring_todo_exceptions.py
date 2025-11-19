@@ -79,8 +79,7 @@ def test_recurring_todo_with_completed_cancelled_exceptions() -> None:
 
     # Should have 10 total occurrences minus 2 (completed and cancelled) = 8
     assert len(occurrences) == 8, (
-        f"Expected 8 occurrences (10 total - 1 completed - 1 cancelled), "
-        f"got {len(occurrences)}"
+        f"Expected 8 occurrences (10 total - 1 completed - 1 cancelled), got {len(occurrences)}"
     )
 
     # Verify none of the returned occurrences are completed or cancelled
@@ -92,20 +91,12 @@ def test_recurring_todo_with_completed_cancelled_exceptions() -> None:
         )
 
     # Verify the IN-PROCESS exception is included
-    in_process_occurrences = [
-        occ for occ in occurrences
-        if occ.get("STATUS") == "IN-PROCESS"
-    ]
-    assert len(in_process_occurrences) == 1, (
-        "Should have exactly one IN-PROCESS occurrence"
-    )
+    in_process_occurrences = [occ for occ in occurrences if occ.get("STATUS") == "IN-PROCESS"]
+    assert len(in_process_occurrences) == 1, "Should have exactly one IN-PROCESS occurrence"
     assert in_process_occurrences[0]["SUMMARY"] == "Weekly Review - In Progress"
 
     # Verify NEEDS-ACTION occurrences are included (from base event)
-    needs_action_occurrences = [
-        occ for occ in occurrences
-        if occ.get("STATUS") == "NEEDS-ACTION"
-    ]
+    needs_action_occurrences = [occ for occ in occurrences if occ.get("STATUS") == "NEEDS-ACTION"]
     assert len(needs_action_occurrences) == 7, (
         f"Should have 7 NEEDS-ACTION occurrences (1st, 5th-10th), "
         f"got {len(needs_action_occurrences)}"
@@ -167,12 +158,8 @@ def test_recurring_todo_with_completed_exceptions_include_completed_true() -> No
     )
 
     # Verify we have completed and cancelled occurrences
-    completed_count = sum(
-        1 for occ in occurrences if occ.get("STATUS") == "COMPLETED"
-    )
-    cancelled_count = sum(
-        1 for occ in occurrences if occ.get("STATUS") == "CANCELLED"
-    )
+    completed_count = sum(1 for occ in occurrences if occ.get("STATUS") == "COMPLETED")
+    cancelled_count = sum(1 for occ in occurrences if occ.get("STATUS") == "CANCELLED")
 
     assert completed_count == 1, f"Expected 1 completed occurrence, got {completed_count}"
     assert cancelled_count == 1, f"Expected 1 cancelled occurrence, got {cancelled_count}"
@@ -253,9 +240,7 @@ def test_recurring_todo_mixed_status_without_exceptions() -> None:
     occurrences = list(result)
 
     # Should have all 4 occurrences
-    assert len(occurrences) == 4, (
-        f"Expected 4 occurrences, got {len(occurrences)}"
-    )
+    assert len(occurrences) == 4, f"Expected 4 occurrences, got {len(occurrences)}"
 
     # All should have NEEDS-ACTION status
     for i, occurrence in enumerate(occurrences, 1):

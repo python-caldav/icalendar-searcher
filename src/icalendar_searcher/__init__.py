@@ -1,8 +1,8 @@
+import logging
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from itertools import tee
-import logging
 from typing import TYPE_CHECKING, Any, Union
 
 import recurring_ical_events
@@ -265,7 +265,9 @@ class Searcher:
             value = getattr(self, attr)
             if value:
                 if not isinstance(value, datetime):
-                    logging.warning("Date-range searches not well supported yet; use datetime rather than dates")
+                    logging.warning(
+                        "Date-range searches not well supported yet; use datetime rather than dates"
+                    )
                 setattr(self, attr, _normalize_dt(value))
 
         ## recurrence_set is our internal generator/iterator containing
@@ -698,22 +700,22 @@ class Searcher:
         for key, operator in self._property_operator.items():
             filter_value = self._property_filters.get(key)
             comp_value = component.get(key)
-            
+
             ## Category needs some special handling
-            if key.lower() == 'categories' and comp_value is not None and filter_value is not None:
+            if key.lower() == "categories" and comp_value is not None and filter_value is not None:
                 if isinstance(filter_value, vCategory):
                     ## TODO: This special case, handling one element different from several, is a bit bad indeed
                     if len(filter_value.cats) == 1:
                         filter_value = str(filter_value.cats[0])
-                        if ',' in filter_value:
-                            filter_value = set(filter_value.split(','))
+                        if "," in filter_value:
+                            filter_value = set(filter_value.split(","))
                     else:
                         filter_value = set([str(x) for x in filter_value.cats])
                 elif isinstance(filter_value, str) or isinstance(filter_value, vText):
                     ## TODO: probably this is irrelevant dead code
                     filter_value = str(filter_value)
-                    if ',' in filter_value:
-                        filter_value = set(filter_value.split(','))
+                    if "," in filter_value:
+                        filter_value = set(filter_value.split(","))
                 elif isinstance(filter_value, Iterable):
                     ## TODO: probably this is irrelevant dead code
                     filter_value = set(filter_value)
@@ -726,12 +728,12 @@ class Searcher:
                 ## Property should contain the filter value (substring match)
                 if key not in component:
                     return False
-                if key.lower() == 'categories':
+                if key.lower() == "categories":
                     if isinstance(filter_value, str):
-                        return any (filter_value in x for x in comp_value)
+                        return any(filter_value in x for x in comp_value)
                     elif isinstance(filter_value, set):
                         return not filter_value - comp_value
-                    
+
                 ## Convert to string for substring matching
                 comp_str = str(comp_value)
                 filter_str = str(filter_value)

@@ -80,11 +80,12 @@ def test_iterable_or_false() -> None:
     assert next(_iterable_or_false(mygen1)) == 3
     assert _iterable_or_false(mygen2) is False
 
+
 def test_yule_tree1() -> None:
     """
     In caldav, the basic usage example stopped working
     """
-    data ="""BEGIN:VCALENDAR
+    data = """BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//python-caldav//caldav//en_DK
 BEGIN:VTODO
@@ -100,26 +101,23 @@ UID:652e3718-c54c-11f0-9203-1c1bb5134174
 END:VTODO
 END:VCALENDAR"""
     cal = Calendar.from_ical(data)
-    for prop_filter in (
-            ('categories', 'outdoor', '=='),
-            ('categories', 'out')):
+    for prop_filter in (("categories", "outdoor", "=="), ("categories", "out")):
         for searcher in (Searcher(), Searcher(todo=True)):
             searcher.add_property_filter(*prop_filter)
             assert searcher._check_property_filters(cal.subcomponents[0])
             assert searcher.check_component(cal)
-    for prop_filter in (
-            ('categories', 'out', '=='),
-            ('categories', 'outdoors')):
+    for prop_filter in (("categories", "out", "=="), ("categories", "outdoors")):
         for searcher in (Searcher(), Searcher(event=True), Searcher(todo=True)):
             searcher.add_property_filter(*prop_filter)
             assert not searcher._check_property_filters(cal.subcomponents[0])
             assert not searcher.check_component(cal)
 
+
 def test_yule_tree2() -> None:
     """
     categories are difficult
     """
-    data ="""BEGIN:VCALENDAR
+    data = """BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//python-caldav//caldav//en_DK
 BEGIN:VTODO
@@ -136,24 +134,25 @@ END:VTODO
 END:VCALENDAR"""
     cal = Calendar.from_ical(data)
     for prop_filter in (
-            ('categories', ['family','outdoor','winter'], '=='),
-            ('categories', 'family,outdoor,winter', '=='),
-            ('categories', 'winter,outdoor,family', '=='),
-            ('categories', 'winter,outdoor'),
-            ('categories', ('winter','outdoor')),
-            ('categories', 'outdoor', '=='),
-            ('categories', 'out')):
+        ("categories", ["family", "outdoor", "winter"], "=="),
+        ("categories", "family,outdoor,winter", "=="),
+        ("categories", "winter,outdoor,family", "=="),
+        ("categories", "winter,outdoor"),
+        ("categories", ("winter", "outdoor")),
+        ("categories", "outdoor", "=="),
+        ("categories", "out"),
+    ):
         for searcher in (Searcher(), Searcher(todo=True)):
             searcher.add_property_filter(*prop_filter)
             assert searcher._check_property_filters(cal.subcomponents[0])
             assert searcher.check_component(cal)
     for prop_filter in (
-            ('categories', 'out', '=='),
-            ('categories', 'outdoors'),
-            ('categories', 'outdoor,summer'),
-            ('categories', ('outdoor,winter'), '==')):
+        ("categories", "out", "=="),
+        ("categories", "outdoors"),
+        ("categories", "outdoor,summer"),
+        ("categories", ("outdoor,winter"), "=="),
+    ):
         for searcher in (Searcher(), Searcher(event=True), Searcher(todo=True)):
             searcher.add_property_filter(*prop_filter)
             assert not searcher._check_property_filters(cal.subcomponents[0])
             assert not searcher.check_component(cal)
-
