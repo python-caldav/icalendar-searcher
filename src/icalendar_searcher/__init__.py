@@ -1,7 +1,7 @@
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from itertools import chain, tee
+from itertools import tee
 from typing import TYPE_CHECKING, Any, Union
 
 import recurring_ical_events
