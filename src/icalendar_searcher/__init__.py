@@ -332,8 +332,11 @@ class Searcher:
 
         comptypesu = set([f"V{x.upper()}" for x in comptypesl if getattr(self, x)])
 
+        ## if expand_only, expand all comptypes, otherwise only the comptypes specified in the filters
+        comptypes_for_expansion = ['VTODO', 'VEVENT', 'VJOURNAL'] if expand_only else comptypesu
+
         if not _ignore_rrule_and_time and "rrule" in first:
-            recurrence_set = self._expand_recurrences(recurrence_set, comptypesu)
+            recurrence_set = self._expand_recurrences(recurrence_set, comptypes_for_expansion)
 
         if not expand_only:
             ## OPTIMIZATION TODO: If the object was recurring, we should
@@ -658,6 +661,10 @@ class Searcher:
     ) -> Iterable[Component]:
         """Expand recurring events within the searcher's time range.
 
+        Ensures expanded occurrences comply with RFC 5545:
+        - Each occurrence has RECURRENCE-ID set
+        - Each occurrence does NOT have RRULE (RRULE and RECURRENCE-ID are mutually exclusive)
+
         :param recurrence_set: List of calendar components to expand
         :param comptypesu: Set of component type strings (e.g., {"VEVENT", "VTODO"})
         :return: Iterable of expanded component instances
@@ -665,11 +672,12 @@ class Searcher:
         cal = Calendar()
         for x in recurrence_set:
             cal.add_component(x)
-        recur = recurring_ical_events.of(cal, comptypesu)
+        recur = recurring_ical_events.of(cal, components=comptypesu)
         if not self.start:
             self.start = _normalize_dt(DATE_MIN_DT)
         if not self.end:
             self.end = _normalize_dt(DATE_MAX_DT)
+
         return recur.between(self.start, self.end)
 
     ## DISCLAIMER: AI-generated code.  But LGTM!

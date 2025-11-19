@@ -44,21 +44,21 @@ def test_recurrence_simple_matches_future_occurrence() -> None:
     assert searcher.check_component(cal)
 
 
-def test_recurrence_simple_matches_open_ended_range() -> None:
-    """Simple yearly recurrence should match with an open-ended date range."""
+def test_recurrence_unlimited_matches_multi_year_range() -> None:
+    """Unlimited yearly recurrence should match when date range spans multiple years."""
     cal = Calendar()
     event = Event()
     event.add("uid", "yearly-event")
     event.add("summary", "New Year Celebration")
     event.add("dtstart", datetime(2025, 1, 1, 10, 0))
     event.add("dtend", datetime(2025, 1, 1, 12, 0))
-    event.add("rrule", vRecur(FREQ="YEARLY"))
+    event.add("rrule", vRecur(FREQ="YEARLY"))  # Unlimited recurrence (no COUNT/UNTIL)
     cal.add_component(event)
 
     searcher = Searcher(
         event=True,
         start=datetime(2025, 1, 1, 0, 0),
-        end=datetime(2027, 12, 31, 23, 59),
+        end=datetime(2027, 12, 31, 23, 59),  # Bounded range covering 3 years
     )
     assert searcher.check_component(cal)
 
