@@ -361,7 +361,7 @@ class Searcher:
             return _iterable_or_false(recurrence_set)
         else:
             if next(recurrence_set, None):
-                return (component,)
+                return orig_recurrence_set
             else:
                 return None
 
