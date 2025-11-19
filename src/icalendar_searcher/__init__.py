@@ -254,7 +254,7 @@ class Searcher:
         ## generator.  Such a class would also eliminate the need of
         ## _generator_or_false.
         orig_recurrence_set = self._validate_and_normalize_component(component)
-        
+
         ## Early return if no work needed
         if expand_only and not self.expand:
             return orig_recurrence_set
@@ -266,7 +266,6 @@ class Searcher:
                 if not isinstance(value, datetime):
                     raise NotImplementedError("Date-range searches not supported yet; use datetime")
                 setattr(self, attr, _normalize_dt(value))
-
 
         ## recurrence_set is our internal generator/iterator containing
         ## everything that hasn't been filtered out yet (in most
@@ -462,7 +461,9 @@ class Searcher:
             component = cal
         return component
 
-    def _validate_and_normalize_component(self, component: Union["Calendar", "Component", "CalendarObjectResource"]) -> list["Component"]:
+    def _validate_and_normalize_component(
+        self, component: Union["Calendar", "Component", "CalendarObjectResource"]
+    ) -> list["Component"]:
         """This method serves two purposes:
 
         1) Be liberal in what "component" it accepts and return
@@ -494,11 +495,10 @@ class Searcher:
         generator yielding infinite or too many subcomponents.
 
         """
-        
+
         component = self._unwrap(component)
         components = [x for x in component.subcomponents if not isinstance(x, Timezone)]
 
-        
         ## We shouldn't get here.  There should always be a valid component.
         if not len(components):
             raise ValueError("Empty component?")
@@ -508,8 +508,14 @@ class Searcher:
         ## rrule-id set, followed by zero or more objects without
         ## rrule-id but with recurrence-id set
         if len(components) > 1:
-            if not  "rrule" in components[0] or not all("recurrence-id" in x for x in components[1:]) or any("rrule" in x for x in components[1:]):
-                raise ValueError("Expected a valid recurrence set, with one master component followed with special recurrences")
+            if (
+                "rrule" not in components[0]
+                or not all("recurrence-id" in x for x in components[1:])
+                or any("rrule" in x for x in components[1:])
+            ):
+                raise ValueError(
+                    "Expected a valid recurrence set, with one master component followed with special recurrences"
+                )
 
         ## components should typically be a list with only one component.
         ## if there are more components, it should be a recurrence set
@@ -520,7 +526,6 @@ class Searcher:
                 "Input parameter component is supposed to contain a single component or a recurrence set - but multiple UIDs found"
             )
         return components
-        
 
     def _check_range(self, component: Component) -> bool:
         """Check if a component falls within the time range specified by self.start and self.end.

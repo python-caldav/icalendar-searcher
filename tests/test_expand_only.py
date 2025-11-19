@@ -174,12 +174,20 @@ def test_expand_only_expands_within_searcher_range() -> None:
 
     # Verify first and last occurrences are in February
     first_occurrence = occurrences[0]
-    first_dt = first_occurrence.start if isinstance(first_occurrence.start, datetime) else first_occurrence.start.dt
+    first_dt = (
+        first_occurrence.start
+        if isinstance(first_occurrence.start, datetime)
+        else first_occurrence.start.dt
+    )
     assert first_dt.month == 2
     assert first_dt.day == 1
 
     last_occurrence = occurrences[-1]
-    last_dt = last_occurrence.start if isinstance(last_occurrence.start, datetime) else last_occurrence.start.dt
+    last_dt = (
+        last_occurrence.start
+        if isinstance(last_occurrence.start, datetime)
+        else last_occurrence.start.dt
+    )
     assert last_dt.month == 2
     assert last_dt.day == 28
 
@@ -422,9 +430,9 @@ def test_expand_only_with_recurrence_exceptions() -> None:
     assert result_normal, "Should match base event"
     occurrences_normal = list(result_normal)
     # Should have fewer than 4 occurrences since exception has different summary
-    assert all("Weekly Team Meeting" in str(occ.get("summary", "")) for occ in occurrences_normal), (
-        "All returned occurrences should have matching summary"
-    )
+    assert all(
+        "Weekly Team Meeting" in str(occ.get("summary", "")) for occ in occurrences_normal
+    ), "All returned occurrences should have matching summary"
 
     # With expand_only=True, all occurrences including exception should be returned
     result_expand = searcher.check_component(cal, expand_only=True)

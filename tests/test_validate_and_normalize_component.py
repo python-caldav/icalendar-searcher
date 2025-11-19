@@ -12,7 +12,7 @@ It should:
 from datetime import datetime
 
 import pytest
-from icalendar import Calendar, Event, Todo, Timezone
+from icalendar import Calendar, Event, Timezone, Todo
 from icalendar.prop import vRecur
 
 from icalendar_searcher import Searcher
@@ -74,7 +74,9 @@ def test_validate_removes_timezone_components() -> None:
 
     assert len(result) == 1, "Should contain only the event, not the timezone"
     assert result[0].name == "VEVENT", "Should be the event"
-    assert all(not isinstance(c, Timezone) for c in result), "No timezone components should be in result"
+    assert all(not isinstance(c, Timezone) for c in result), (
+        "No timezone components should be in result"
+    )
 
 
 def test_validate_empty_calendar_raises_error() -> None:
