@@ -7,27 +7,27 @@ repos:
     - id: ruff
       args:
        - "--fix"
-      stages: [commit]
+      stages: [pre-commit]
     # Run the formatter on commit
     - id: ruff-format
-      stages: [commit]
+      stages: [pre-commit]
 
  - repo: https://github.com/pre-commit/pre-commit-hooks
    rev: v6.0.0
    hooks:
     - id: trailing-whitespace
-      stages: [commit]
+      stages: [pre-commit]
     - id: end-of-file-fixer
-      stages: [commit]
+      stages: [pre-commit]
     - id: check-yaml
-      stages: [commit]
+      stages: [pre-commit]
     - id: check-toml
-      stages: [commit]
+      stages: [pre-commit]
     - id: check-ast
-      stages: [commit]
+      stages: [pre-commit]
     - id: mixed-line-ending
       args: [--fix=lf]
-      stages: [commit]
+      stages: [pre-commit]
 
  - repo: local
    hooks:
@@ -38,7 +38,7 @@ repos:
       language: system
       types: [python]
       pass_filenames: false
-      stages: [push]
+      stages: [pre-push]
     # Run full test suite on push
     - id: pytest-push
       name: Run pytest
@@ -46,4 +46,4 @@ repos:
       language: system
       pass_filenames: false
       always_run: true
-      stages: [push]
+      stages: [pre-push]
