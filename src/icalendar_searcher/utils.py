@@ -6,7 +6,6 @@ from itertools import tee
 
 from icalendar.prop import TypesFactory
 
-
 ## We need an instance of the icalendar.prop.TypesFactory class.
 ## We'll make a global instance rather than instantiate it for
 ## every loop iteration
