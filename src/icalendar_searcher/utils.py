@@ -1,5 +1,7 @@
 """Utility functions for icalendar-searcher."""
 
+from __future__ import aannotations
+
 from collections.abc import Iterable, Iterator
 from datetime import date, datetime
 from itertools import tee
