@@ -10,3 +10,11 @@ from __future__ import annotations
 from .searcher import Searcher
 
 __all__ = ["Searcher"]
+
+# Version is set by poetry-dynamic-versioning at build time
+try:
+    from importlib.metadata import version
+
+    __version__ = version("icalendar-searcher")
+except Exception:
+    __version__ = "unknown"
