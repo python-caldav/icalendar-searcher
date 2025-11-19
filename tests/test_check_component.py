@@ -3,7 +3,8 @@ from datetime import datetime
 import pytest
 from icalendar import Calendar, Event, Todo
 
-from icalendar_searcher import Searcher, _iterable_or_false
+from icalendar_searcher import Searcher
+from icalendar_searcher.utils import _iterable_or_false
 
 
 def test_include_completed() -> None:

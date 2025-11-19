@@ -1,0 +1,330 @@
+"""Filtering logic for icalendar components."""
+
+from collections.abc import Iterable
+from datetime import datetime, timedelta
+
+from icalendar import Component, error
+from icalendar.prop import vCategory, vText
+from recurring_ical_events import DATE_MAX_DT, DATE_MIN_DT
+
+from .utils import _normalize_dt
+
+
+class FilterMixin:
+    """Mixin class providing filtering methods for calendar components.
+
+    This class is meant to be mixed into the Searcher dataclass.
+    It expects the following attributes to be available on self:
+    - start, end: datetime range filters
+    - alarm_start, alarm_end: alarm range filters
+    - include_completed: bool for filtering completed todos
+    - _property_filters: dict of property filters
+    - _property_operator: dict of property operators
+    """
+
+    def _check_range(self, component: Component) -> bool:
+        """Check if a component falls within the time range specified by self.start and self.end.
+
+        Implements RFC4791 section 9.9 time-range filtering logic for VEVENT, VTODO, and VJOURNAL.
+
+        :param component: A single calendar component (VEVENT, VTODO, or VJOURNAL)
+        :return: True if the component matches the time range, False otherwise
+        """
+        comp_name = component.name
+
+        ## The logic below should correspond neatly with RFC4791 section 9.9
+
+        ## fetch comp_end and comp_start
+        ## note that comp_end is DTSTART + DURATION if DURATION is given.
+        ## note that for tasks, comp_end is set to DUE
+        ## This logic is all handled by the start/end properties in the
+        ## icalendar library, and makes the logic here less complex
+
+        try:
+            comp_end = _normalize_dt(component.end)
+        except error.IncompleteComponent:
+            comp_end = None
+
+        try:
+            comp_start = _normalize_dt(component.start)
+        except error.IncompleteComponent:
+            if component.name == "VEVENT":
+                ## for events, DTSTART is mandatory
+                raise
+            comp_start = None
+
+        if comp_name == "VEVENT":
+            ## comp_start is always set.
+            if not comp_end and isinstance(comp_start, datetime):
+                ## if comp_end is not set and comp_start is a datetime,
+                ## consider zero duration
+                comp_end = comp_start
+            elif not comp_end:
+                ## if comp_end is not set and comp_start is a datetime,
+                ## consider one day duration
+                comp_end = comp_start + timedelta(day=1)
+                ## TODO: What time of the day does the day change?
+                ## Time zones are difficult!  TODO: as for now,
+                ## self.start is a datetime, but in the future dates
+                ## should be allowed as well.  Then the time zone
+                ## problem for full-day events is at least simplified.
+
+        elif comp_name == "VTODO":
+            ## There is a long matrix for VTODO in the RFC, and it
+            ## may seem complicated, but it isn't that bad:
+
+            ## * A task with DTSTART and DURATION is equivalent with a
+            ##   task with DTSTART and DUE.  This complexity is
+            ##   already handled by the icalendar library, so all rows
+            ##   in the matrix where VTODO has the DURATION property?"
+            ##   is Y may be removed.
+            ##
+            ## * If either DUE or DTSTART is set, use it.
+            if comp_end and not comp_start:
+                comp_start = comp_end
+            if comp_start and not comp_end:
+                comp_end = comp_start
+
+            ## * If both created/completed is set and
+            ##   comp_start/comp_end is not set, then use those instead
+            if not comp_start:
+                if "CREATED" in component:
+                    comp_start = _normalize_dt(component["CREATED"].dt)
+                if "COMPLETED" in component:
+                    comp_end = _normalize_dt(component["COMPLETED"].dt)
+
+            ## * A task may have a DUE before the DTSTART.  The
+            ##   complicated OR-logic in the table may be eliminated
+            ##   by swapping start/end if necessary:
+            if comp_end and comp_start and comp_end < comp_start:
+                tmp = comp_start
+                comp_start = comp_end
+                comp_end = tmp
+
+            ## * A task with no timestamps is considered to be done "at any or all days".
+            if not comp_end and not comp_start:
+                comp_start = _normalize_dt(DATE_MIN_DT)
+                comp_end = _normalize_dt(DATE_MAX_DT)
+
+        elif comp_name == "VJOURNAL":
+            if not comp_start:
+                ## Journal without DTSTART doesn't match time ranges
+                return False
+            if isinstance(comp_start, datetime):
+                comp_end = comp_start
+            else:
+                comp_end = comp_start + timedelta(days=1)
+
+        if comp_start == comp_end:
+            ## Now the match requirement is start <= comp_end
+            ## while otherwise the match requirement is start < comp_end
+            ## minor detail, we'll work around it:
+            comp_end += timedelta(seconds=1)
+
+        ## After the logic above, all rows in the matrix boils down to
+        ## this: (we could reduce it even more by defaulting
+        ## self.start and self.end to DATE_MIN_DT etc)
+        if self.start and self.end and comp_end:
+            return self.start < comp_end and self.end > comp_start
+        elif self.end:
+            return self.end > comp_start
+        elif self.start and comp_end:
+            return self.start < comp_end
+        return True
+
+    def _check_completed_filter(self, component: Component) -> bool:
+        """Check if a component should be included based on the include_completed filter.
+
+        :param component: A single calendar component
+        :return: True if the component should be included, False if it should be filtered out
+        """
+        if self.include_completed:
+            return True
+
+        ## If include_completed is False, exclude completed/cancelled VTODOs
+        ## Include everything that is not a VTODO, or VTODOs that are not completed/cancelled
+        if component.name != "VTODO":
+            return True
+
+        ## For VTODOs, exclude if STATUS is COMPLETED or CANCELLED, or if COMPLETED property is set
+        status = component.get("STATUS", "NEEDS-ACTION")
+        if status in ("COMPLETED", "CANCELLED"):
+            return False
+        if "COMPLETED" in component:
+            return False
+
+        return True
+
+    ## DISCLAIMER: partly AI-generated code.
+    def _check_property_filters(self, component: Component) -> bool:
+        """Check if a component matches all property filters.
+
+        :param component: A single calendar component
+        :return: True if the component matches all property filters, False otherwise
+        """
+        for key, operator in self._property_operator.items():
+            filter_value = self._property_filters.get(key)
+            comp_value = component.get(key)
+
+            ## Category needs some special handling
+            if key.lower() == "categories" and comp_value is not None and filter_value is not None:
+                if isinstance(filter_value, vCategory):
+                    ## TODO: This special case, handling one element different from several, is a bit bad indeed
+                    if len(filter_value.cats) == 1:
+                        filter_value = str(filter_value.cats[0])
+                        if "," in filter_value:
+                            filter_value = set(filter_value.split(","))
+                    else:
+                        filter_value = set([str(x) for x in filter_value.cats])
+                elif isinstance(filter_value, str) or isinstance(filter_value, vText):
+                    ## TODO: probably this is irrelevant dead code
+                    filter_value = str(filter_value)
+                    if "," in filter_value:
+                        filter_value = set(filter_value.split(","))
+                elif isinstance(filter_value, Iterable):
+                    ## TODO: probably this is irrelevant dead code
+                    filter_value = set(filter_value)
+                comp_value = set([str(x) for x in comp_value.cats])
+            if operator == "undef":
+                ## Property should NOT be defined
+                if key in component:
+                    return False
+            elif operator == "contains":
+                ## Property should contain the filter value (substring match)
+                if key not in component:
+                    return False
+                if key.lower() == "categories":
+                    if isinstance(filter_value, str):
+                        return any(filter_value in x for x in comp_value)
+                    elif isinstance(filter_value, set):
+                        return not filter_value - comp_value
+
+                ## Convert to string for substring matching
+                comp_str = str(comp_value)
+                filter_str = str(filter_value)
+                if filter_str.lower() not in comp_str.lower():
+                    return False
+            elif operator == "==":
+                ## Property should exactly match the filter value
+                if key not in component:
+                    return False
+                ## Compare the values This is tricky, as the values
+                ## may have different types.  TODO: we should add more
+                ## logic for the different property types.  Maybe get
+                ## it into the icalendar library.
+                if comp_value == filter_value:
+                    return True
+                if isinstance(filter_value, str) and isinstance(comp_value, set):
+                    return filter_value in comp_value
+                return False
+            else:
+                ## This shouldn't happen as add_property_filter validates operators
+                raise NotImplementedError(f"Operator {operator} not implemented")
+
+        return True
+
+    ## DISCLAIMER: Mostly AI-generated code, with a touch of human polishing
+    ## and bugfixing. Alarms are a bit complex.
+    def _check_alarm_range(self, component: Component) -> bool:
+        """Check if a component has alarms that fire within the alarm time range.
+
+        Implements RFC 4791 section 9.9 alarm time-range filtering.
+
+        :param component: A single calendar component (VEVENT, VTODO, or VJOURNAL)
+        :return: True if any alarm fires within the alarm range, False otherwise
+        """
+        from datetime import timedelta
+
+        ## Get all VALARM subcomponents
+        alarms = [x for x in component.subcomponents if x.name == "VALARM"]
+
+        if not alarms:
+            ## No alarms - doesn't match alarm search
+            return False
+
+        ## Get component start/end for relative trigger calculations
+        ## Use try/except because .start/.end may raise IncompleteComponent
+        ## For VTODO, RFC 5545 says TRIGGER is relative to DUE if present, else DTSTART
+        comp_start = None
+        comp_end = None
+        try:
+            comp_start = _normalize_dt(component.start)
+        except error.IncompleteComponent:
+            pass
+        try:
+            comp_end = _normalize_dt(component.end)
+        except error.IncompleteComponent:
+            pass
+
+        ## For each alarm, calculate when it fires
+        for alarm in alarms:
+            if "TRIGGER" not in alarm:
+                continue
+
+            trigger = alarm["TRIGGER"]
+
+            ## The icalendar library stores trigger values in .dt attribute
+            ## which can be either datetime (absolute) or timedelta (relative)
+            if not hasattr(trigger, "dt"):
+                continue
+
+            trigger_value = trigger.dt
+
+            ## Check if trigger is absolute (datetime) or relative (timedelta)
+            if isinstance(trigger_value, timedelta):
+                ## Relative trigger - timedelta from start or end
+                trigger_delta = trigger_value
+
+                ## Check TRIGGER's RELATED parameter (default is START)
+                ## For VTODO, default anchor is DUE if present, else DTSTART
+                related = "START"  # Default per RFC 5545
+                if hasattr(trigger, "params") and "RELATED" in trigger.params:
+                    related = trigger.params["RELATED"]
+
+                ## Calculate alarm time based on RELATED and component type
+                if related == "END" and comp_end:
+                    alarm_time = comp_end + trigger_delta
+                elif comp_start:
+                    alarm_time = comp_start + trigger_delta
+                else:
+                    ## No start, end, or due to relate to
+                    continue
+            else:
+                ## Absolute trigger - direct datetime
+                alarm_time = _normalize_dt(trigger_value)
+
+            ## Check for REPEAT and DURATION (repeating alarms/snooze functionality)
+            ## Check all repetitions, not just the first alarm
+            if "REPEAT" in alarm and "DURATION" in alarm:
+                repeat_count = alarm["REPEAT"]
+                duration = alarm["DURATION"].dt if hasattr(alarm["DURATION"], "dt") else None
+
+                if duration:
+                    ## Check each repetition
+                    for i in range(int(repeat_count) + 1):
+                        repeat_time = alarm_time + (duration * i)
+                        ## Check if this repetition fires within the alarm range
+                        if self.alarm_start and self.alarm_end:
+                            if self.alarm_start <= repeat_time < self.alarm_end:
+                                return True
+                        elif self.alarm_start:
+                            if repeat_time >= self.alarm_start:
+                                return True
+                        elif self.alarm_end:
+                            if repeat_time < self.alarm_end:
+                                return True
+                    ## None of the repetitions matched
+                    continue
+
+            ## Check if this alarm (first occurrence) fires within the alarm range
+            if self.alarm_start and self.alarm_end:
+                if self.alarm_start <= alarm_time < self.alarm_end:
+                    return True
+            elif self.alarm_start:
+                if alarm_time >= self.alarm_start:
+                    return True
+            elif self.alarm_end:
+                if alarm_time < self.alarm_end:
+                    return True
+
+        return False

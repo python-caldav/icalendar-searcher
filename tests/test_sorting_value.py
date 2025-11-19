@@ -9,7 +9,7 @@ from datetime import datetime as real_datetime
 
 from icalendar import Calendar, Event, Todo
 
-import icalendar_searcher
+import icalendar_searcher.searcher
 from icalendar_searcher import Searcher
 
 
@@ -90,8 +90,8 @@ def test_special_sort_keys_isnt_overdue_and_hasnt_started(monkeypatch: Callable)
         def now(cls) -> real_datetime:
             return real_datetime(2025, 1, 2, 12, 0)
 
-    # Patch the datetime used inside the icalendar_searcher module
-    monkeypatch.setattr(icalendar_searcher, "datetime", FakeDatetime)
+    # Patch the datetime used inside the icalendar_searcher.searcher module
+    monkeypatch.setattr(icalendar_searcher.searcher, "datetime", FakeDatetime)
 
     vals = s.sorting_value(cal)
     # due < now -> isnt_overdue should be False
