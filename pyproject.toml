@@ -5,17 +5,17 @@ description = ""
 authors = [
     {name = "Tobias Brox",email = "tobias@redpill-linpro.com"}
 ]
-[project.urls]
-Repository = "https://github.com/python-caldav/icalendar-searches"
-Issues = "https://github.com/python-caldav/icalendar-searches/issues"
-#Documentation = "https://icalendar-searches.readthedocs.io/"
-#Changelog = "https://github.com/python-caldav/icalendar-searches/master/CHANGELOG.md"
-
 ## caldav still supports 3.9, so we would definitively like
 ## to support python 3.9 for a while.  However, the precommit
 ## logic I just threw in requires me to officially ditch 3.9-support.
 ## I guess the caldav tests will still exercise this library with 3.9.
 requires-python = ">=3.10,<4.0"
+
+[project.urls]
+Repository = "https://github.com/python-caldav/icalendar-searches"
+Issues = "https://github.com/python-caldav/icalendar-searches/issues"
+#Documentation = "https://icalendar-searches.readthedocs.io/"
+#Changelog = "https://github.com/python-caldav/icalendar-searches/master/CHANGELOG.md"
 
 [tool.poetry]
 name = "icalendar-searcher"
