@@ -9,7 +9,7 @@ authors = [
 ## to support python 3.9 for a while.  However, the precommit
 ## logic I just threw in requires me to officially ditch 3.9-support.
 ## I guess the caldav tests will still exercise this library with 3.9.
-requires-python = ">=3.10,<4.0"
+requires-python = ">=3.9,<4.0"
 
 [project.urls]
 Repository = "https://github.com/python-caldav/icalendar-searches"
