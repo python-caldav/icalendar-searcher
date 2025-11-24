@@ -1,8 +1,12 @@
 """Tests for text collation features."""
 
+from unittest.mock import patch
+
+import pytest
 from icalendar import Event, Todo
 
 from icalendar_searcher import Collation, Searcher
+from icalendar_searcher.collation import HAS_PYICU, CollationError
 
 
 def test_case_sensitive_search_default() -> None:
@@ -239,46 +243,94 @@ def test_collation_with_todo() -> None:
     assert result, "Case-insensitive search should work with VTODO"
 
 
+@pytest.mark.skipif(not HAS_PYICU, reason="PyICU not installed")
+def test_pyicu_unicode_collation_with_pyicu() -> None:
+    """UNICODE collation should work when PyICU is installed."""
+    event = Event()
+    event.add("uid", "123")
+    event.add("summary", "Test")
+
+    searcher = Searcher(event=True)
+    searcher.add_property_filter(
+        "SUMMARY", "test", operator="contains", collation=Collation.UNICODE
+    )
+
+    result = searcher.check_component(event)
+    # With PyICU installed, case-insensitive match should work
+    assert result, "UNICODE collation should match 'test' in 'Test'"
+
+
+@pytest.mark.skipif(not HAS_PYICU, reason="PyICU not installed")
+def test_pyicu_locale_collation_with_pyicu() -> None:
+    """LOCALE collation should work when PyICU is installed."""
+    event = Event()
+    event.add("uid", "123")
+    event.add("summary", "Müller")
+
+    searcher = Searcher(event=True)
+    searcher.add_property_filter(
+        "SUMMARY", "müller", operator="contains", collation=Collation.LOCALE, locale="de_DE"
+    )
+
+    result = searcher.check_component(event)
+    # With PyICU installed, locale-aware match should work
+    assert result, "LOCALE collation should match 'müller' in 'Müller'"
+
+
+@patch("icalendar_searcher.collation.HAS_PYICU", False)
 def test_pyicu_not_available_unicode_collation() -> None:
-    """UNICODE collation should raise error if PyICU not installed."""
+    """UNICODE collation should raise CollationError if PyICU not available."""
     event = Event()
     event.add("uid", "123")
     event.add("summary", "Test")
 
     searcher = Searcher(event=True)
+    searcher.add_property_filter(
+        "SUMMARY", "test", operator="contains", collation=Collation.UNICODE
+    )
 
-    # Try to use UNICODE collation (will fail if PyICU not installed)
-    try:
-        searcher.add_property_filter(
-            "SUMMARY", "test", operator="contains", collation=Collation.UNICODE
-        )
-        result = searcher.check_component(event)
-        # If PyICU is installed, this should work
-        # If not installed, CollationError should be raised
-    except Exception as e:
-        # Should get CollationError if PyICU not installed
-        assert "PyICU" in str(e), "Error message should mention PyICU requirement"
+    # Should raise CollationError when trying to use UNICODE collation
+    with pytest.raises(CollationError) as exc_info:
+        searcher.check_component(event)
+
+    assert "PyICU" in str(exc_info.value), "Error should mention PyICU requirement"
+    assert "icalendar-searcher[collation]" in str(exc_info.value), "Error should mention installation command"
 
 
+@patch("icalendar_searcher.collation.HAS_PYICU", False)
 def test_pyicu_not_available_locale_collation() -> None:
-    """LOCALE collation should raise error if PyICU not installed."""
+    """LOCALE collation should raise CollationError if PyICU not available."""
     event = Event()
     event.add("uid", "123")
     event.add("summary", "Test")
 
     searcher = Searcher(event=True)
+    searcher.add_property_filter(
+        "SUMMARY", "test", operator="contains", collation=Collation.LOCALE, locale="en_US"
+    )
 
-    # Try to use LOCALE collation (will fail if PyICU not installed)
-    try:
-        searcher.add_property_filter(
-            "SUMMARY", "test", operator="contains", collation=Collation.LOCALE, locale="en_US"
-        )
-        result = searcher.check_component(event)
-        # If PyICU is installed, this should work
-        # If not installed, CollationError should be raised
-    except Exception as e:
-        # Should get CollationError if PyICU not installed
-        assert "PyICU" in str(e), "Error message should mention PyICU requirement"
+    # Should raise CollationError when trying to use LOCALE collation
+    with pytest.raises(CollationError) as exc_info:
+        searcher.check_component(event)
+
+    assert "PyICU" in str(exc_info.value), "Error should mention PyICU requirement"
+
+
+@patch("icalendar_searcher.collation.HAS_PYICU", False)
+def test_pyicu_not_available_sorting() -> None:
+    """UNICODE collation for sorting should raise CollationError if PyICU not available."""
+    event = Event()
+    event.add("uid", "123")
+    event.add("summary", "Test")
+
+    searcher = Searcher(event=True)
+    searcher.add_sort_key("SUMMARY", collation=Collation.UNICODE)
+
+    # Should raise CollationError when trying to generate sort key
+    with pytest.raises(CollationError) as exc_info:
+        searcher.sorting_value(event)
+
+    assert "PyICU" in str(exc_info.value), "Error should mention PyICU requirement"
 
 
 def test_backwards_compatibility_old_test() -> None:

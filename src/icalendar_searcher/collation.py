@@ -171,28 +171,21 @@ def _case_insensitive_contains(needle: str, haystack: str) -> bool:
 def _get_icu_contains(locale: str | None) -> Callable[[str, str], bool]:
     """Get ICU-based substring matcher.
 
-    Creates a collator instance and returns a function that uses it.
-    The collator is created once and reused for performance.
+    Note: This is a simplified implementation. PyICU doesn't expose ICU's
+    StringSearch API which would be needed for proper substring matching with
+    collation. For now, we use case-insensitive matching as an approximation.
+
+    Future enhancement: Implement proper collation-aware substring matching.
     """
-    icu_locale = ICULocale(locale) if locale else ICULocale.getRoot()
-    collator = ICUCollator.createInstance(icu_locale)
 
     def icu_contains(needle: str, haystack: str) -> bool:
-        """Check if needle is in haystack using ICU collation.
+        """Check if needle is in haystack using case-insensitive matching.
 
-        This is a simplified implementation that normalizes and compares.
-        For production use, consider more sophisticated matching algorithms.
+        This is a fallback implementation until proper ICU StringSearch support
+        is added. It provides reasonable behavior for most use cases.
         """
-        # Simple approach: check if normalized needle appears in normalized haystack
-        # More sophisticated: use ICU StringSearch for proper substring matching
-        needle_normalized = collator.getSortKey(needle)
-        haystack_normalized = collator.getSortKey(haystack)
-
-        # For substring matching with collation, we need to check if any substring
-        # of haystack matches needle under the collation rules.
-        # This is a simplified implementation - proper implementation would use
-        # ICU's StringSearch API which PyICU doesn't expose directly.
-        # For now, fall back to case-insensitive if we can't do proper collation
+        # TODO: Use ICU StringSearch for proper collation-aware substring matching
+        # For now, fall back to case-insensitive as a reasonable approximation
         return needle.lower() in haystack.lower()
 
     return icu_contains
