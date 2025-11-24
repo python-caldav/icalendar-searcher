@@ -6,7 +6,7 @@ import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 import recurring_ical_events
 from icalendar import Calendar, Component, Timezone
@@ -261,10 +261,10 @@ class Searcher(FilterMixin):
 
     def check_component(
         self,
-        component: Union["Calendar", "Component", "CalendarObjectResource"],
+        component: Calendar | Component | CalendarObjectResource,
         expand_only: bool = False,
         _ignore_rrule_and_time: bool = False,
-    ) -> Iterable["Component"]:
+    ) -> Iterable[Component]:
         """Checks if one component (or recurrence set) matches the
         filters.  If the component parameter is a calendar containing
         several independent components, an Exception may be raised,
@@ -415,8 +415,8 @@ class Searcher(FilterMixin):
                 return None
 
     def filter(
-        self, components: list[Union["Calendar", "CalendarObjectResource"]]
-    ) -> list[Union["Calendar", "CalendarObjectResource"]]:
+        self, components: list[Calendar | CalendarObjectResource]
+    ) -> list[Calendar | CalendarObjectResource]:
         """
         Filters the components given according to the search
         criterias, and possibly expanding recurrences.
@@ -427,8 +427,8 @@ class Searcher(FilterMixin):
         raise NotImplementedError()
 
     def sort(
-        self, components: list[Union["Calendar", "CalendarObjectResource"]]
-    ) -> list[Union["Calendar", "CalendarObjectResource"]]:
+        self, components: list[Calendar | CalendarObjectResource]
+    ) -> list[Calendar | CalendarObjectResource]:
         """
         Sorts the components given according to the sort
         keys.
@@ -438,7 +438,7 @@ class Searcher(FilterMixin):
         """
         raise NotImplementedError()
 
-    def sorting_value(self, component: Union["Calendar", "CalendarObjectResource"]) -> tuple:
+    def sorting_value(self, component: Calendar | CalendarObjectResource) -> tuple:
         """
         Returns a sortable value from the component, based on the sort keys
         """
@@ -509,7 +509,7 @@ class Searcher(FilterMixin):
 
         return ret
 
-    def _unwrap(self, component: Union["Calendar", "CalendarObjectResource"]) -> "Calendar":
+    def _unwrap(self, component: Calendar | CalendarObjectResource) -> Calendar:
         """
         To support the caldav library (and possibly other libraries where the
         icalendar component is wrapped)
@@ -525,8 +525,8 @@ class Searcher(FilterMixin):
         return component
 
     def _validate_and_normalize_component(
-        self, component: Union["Calendar", "Component", "CalendarObjectResource"]
-    ) -> list["Component"]:
+        self, component: Calendar | Component | CalendarObjectResource
+    ) -> list[Component]:
         """This method serves two purposes:
 
         1) Be liberal in what "component" it accepts and return
