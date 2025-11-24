@@ -35,16 +35,16 @@ def test_property_filter_contains_no_match() -> None:
 
 
 def test_property_filter_contains_case_insensitive() -> None:
-    """Property filter with 'contains' should be case-insensitive."""
+    """Property filter with 'contains' can be case-insensitive with case_sensitive=False."""
     event = Event()
     event.add("uid", "123")
     event.add("summary", "TRAINING SESSION")
 
     searcher = Searcher(event=True)
-    searcher.add_property_filter("SUMMARY", "train", operator="contains")
+    searcher.add_property_filter("SUMMARY", "train", operator="contains", case_sensitive=False)
 
     result = searcher.check_component(event)
-    assert result, "Contains filter should be case-insensitive"
+    assert result, "Contains filter with case_sensitive=False should be case-insensitive"
 
 
 def test_property_filter_contains_missing_property() -> None:
@@ -120,7 +120,7 @@ def test_multiple_property_filters_all_match() -> None:
     event.add("location", "Room 101")
 
     searcher = Searcher(event=True)
-    searcher.add_property_filter("SUMMARY", "train", operator="contains")
+    searcher.add_property_filter("SUMMARY", "Training", operator="contains")
     searcher.add_property_filter("LOCATION", "Room", operator="contains")
 
     result = searcher.check_component(event)

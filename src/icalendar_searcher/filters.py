@@ -7,6 +7,7 @@ from icalendar import Component, error
 from icalendar.prop import vCategory, vText
 from recurring_ical_events import DATE_MAX_DT, DATE_MIN_DT
 
+from .collation import Collation, get_collation_function
 from .utils import _normalize_dt
 
 
@@ -20,6 +21,8 @@ class FilterMixin:
     - include_completed: bool for filtering completed todos
     - _property_filters: dict of property filters
     - _property_operator: dict of property operators
+    - _property_collation: dict of property collations
+    - _property_locale: dict of property locales
     """
 
     def _check_range(self, component: Component) -> bool:
@@ -166,6 +169,10 @@ class FilterMixin:
             filter_value = self._property_filters.get(key)
             comp_value = component.get(key)
 
+            # Get collation settings for this property
+            collation = self._property_collation.get(key, Collation.BINARY)
+            locale = self._property_locale.get(key)
+
             ## Category needs some special handling
             if key.lower() == "categories" and comp_value is not None and filter_value is not None:
                 if isinstance(filter_value, vCategory):
@@ -194,15 +201,25 @@ class FilterMixin:
                 if key not in component:
                     return False
                 if key.lower() == "categories":
+                    # Get collation function for category matching
+                    collation_fn = get_collation_function(collation, locale)
                     if isinstance(filter_value, str):
-                        return any(filter_value in x for x in comp_value)
+                        # Check if filter_value is in any category using collation
+                        return any(collation_fn(filter_value, x) for x in comp_value)
                     elif isinstance(filter_value, set):
-                        return not filter_value - comp_value
+                        # Check if all filter values are in comp_value using collation
+                        for fv in filter_value:
+                            if not any(collation_fn(fv, cv) for cv in comp_value):
+                                return False
+                        return True
 
                 ## Convert to string for substring matching
                 comp_str = str(comp_value)
                 filter_str = str(filter_value)
-                if filter_str.lower() not in comp_str.lower():
+
+                # Use collation function for text matching
+                collation_fn = get_collation_function(collation, locale)
+                if not collation_fn(filter_str, comp_str):
                     return False
             elif operator == "==":
                 ## Property should exactly match the filter value
