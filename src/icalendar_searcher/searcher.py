@@ -1,15 +1,18 @@
 """Main Searcher class for icalendar component filtering and sorting."""
 
+from __future__ import annotations
+
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 import recurring_ical_events
 from icalendar import Calendar, Component, Timezone
 from recurring_ical_events import DATE_MAX_DT, DATE_MIN_DT
 
+from .collation import Collation, get_sort_key_function
 from .filters import FilterMixin
 from .utils import _iterable_or_false, _normalize_dt, types_factory
 
@@ -121,10 +124,22 @@ class Searcher(FilterMixin):
     expand: bool = False
 
     _sort_keys: list = field(default_factory=list)
+    _sort_collation: dict = field(default_factory=dict)
+    _sort_locale: dict = field(default_factory=dict)
     _property_filters: dict = field(default_factory=dict)
     _property_operator: dict = field(default_factory=dict)
+    _property_collation: dict = field(default_factory=dict)
+    _property_locale: dict = field(default_factory=dict)
 
-    def add_property_filter(self, key: str, value: Any, operator: str = "contains") -> None:
+    def add_property_filter(
+        self,
+        key: str,
+        value: Any,
+        operator: str = "contains",
+        case_sensitive: bool = True,
+        collation: Collation | None = None,
+        locale: str | None = None,
+    ) -> None:
         """Adds a filter for some specific iCalendar property.
 
         Examples of valid iCalendar properties: SUMMARY,
@@ -133,6 +148,13 @@ class Searcher(FilterMixin):
         :param key: must be an icalendar property, i.e. SUMMARY
         :param value: should adhere to the type defined in the RFC
         :param operator: Comparision operator ("contains", "==", etc)
+        :param case_sensitive: If False, text comparisons are case-insensitive.
+                              Only applies to text properties. Default is True.
+        :param collation: Advanced collation strategy for text comparison.
+                         If specified, overrides case_sensitive parameter.
+                         Only needed by power users for locale-aware collation.
+        :param locale: Locale string (e.g., "de_DE") for locale-aware collation.
+                      Only used with collation=Collation.LOCALE.
 
         For the operator, the following is (planned to be) supported:
 
@@ -149,6 +171,18 @@ class Searcher(FilterMixin):
         * <> or != - inqueality, both supported
 
         * def, undef - will match if the property is (not) defined.  value can be set to None, will be ignored.
+
+        Examples:
+            # Case-insensitive search (simple API)
+            searcher.add_property_filter("SUMMARY", "meeting", case_sensitive=False)
+
+            # Case-sensitive search (default)
+            searcher.add_property_filter("SUMMARY", "Meeting")
+
+            # Advanced: locale-aware collation (requires PyICU)
+            searcher.add_property_filter("SUMMARY", "Müller",
+                                        collation=Collation.LOCALE,
+                                        locale="de_DE")
         """
         if operator not in ("contains", "undef", "=="):
             raise NotImplementedError(f"The operator {operator} is not supported yet.")
@@ -156,13 +190,54 @@ class Searcher(FilterMixin):
             self._property_filters[key] = types_factory.for_property(key)(value)
         self._property_operator[key] = operator
 
-    def add_sort_key(self, key: str, reversed: bool = None) -> None:
-        """
+        # Determine collation strategy
+        if collation is not None:
+            # Power user specified explicit collation
+            self._property_collation[key] = collation
+            self._property_locale[key] = locale
+        elif not case_sensitive:
+            # Simple API: case_sensitive=False
+            self._property_collation[key] = Collation.CASE_INSENSITIVE
+            self._property_locale[key] = None
+        else:
+            # Default: binary (case-sensitive)
+            self._property_collation[key] = Collation.BINARY
+            self._property_locale[key] = None
+
+    def add_sort_key(
+        self,
+        key: str,
+        reversed: bool = None,
+        case_sensitive: bool = True,
+        collation: Collation | None = None,
+        locale: str | None = None,
+    ) -> None:
+        """Add a sort key for sorting components.
+
         Special keys "isnt_overdue" and "hasnt_started" is
         supported, those will compare the DUE (for a task) or the
         DTSTART with the current wall clock and return a bool.
 
         Except for that, the sort key should be an icalendar property.
+
+        :param key: The property name to sort by
+        :param reversed: If True, sort in reverse order
+        :param case_sensitive: If False, text sorting is case-insensitive.
+                              Only applies to text properties. Default is True.
+        :param collation: Advanced collation strategy for text sorting.
+                         If specified, overrides case_sensitive parameter.
+        :param locale: Locale string (e.g., "de_DE") for locale-aware sorting.
+                      Only used with collation=Collation.LOCALE.
+
+        Examples:
+            # Case-insensitive sorting (simple API)
+            searcher.add_sort_key("SUMMARY", case_sensitive=False)
+
+            # Case-sensitive sorting (default)
+            searcher.add_sort_key("SUMMARY")
+
+            # Advanced: locale-aware sorting (requires PyICU)
+            searcher.add_sort_key("SUMMARY", collation=Collation.LOCALE, locale="de_DE")
         """
         assert key in types_factory.types_map or key in (
             "isnt_overdue",
@@ -170,12 +245,26 @@ class Searcher(FilterMixin):
         )
         self._sort_keys.append((key, reversed))
 
+        # Determine collation strategy for sorting
+        if collation is not None:
+            # Power user specified explicit collation
+            self._sort_collation[key] = collation
+            self._sort_locale[key] = locale
+        elif not case_sensitive:
+            # Simple API: case_sensitive=False
+            self._sort_collation[key] = Collation.CASE_INSENSITIVE
+            self._sort_locale[key] = None
+        else:
+            # Default: binary (case-sensitive)
+            self._sort_collation[key] = Collation.BINARY
+            self._sort_locale[key] = None
+
     def check_component(
         self,
-        component: Union["Calendar", "Component", "CalendarObjectResource"],
+        component: Calendar | Component | CalendarObjectResource,
         expand_only: bool = False,
         _ignore_rrule_and_time: bool = False,
-    ) -> Iterable["Component"]:
+    ) -> Iterable[Component]:
         """Checks if one component (or recurrence set) matches the
         filters.  If the component parameter is a calendar containing
         several independent components, an Exception may be raised,
@@ -326,8 +415,8 @@ class Searcher(FilterMixin):
                 return None
 
     def filter(
-        self, components: list[Union["Calendar", "CalendarObjectResource"]]
-    ) -> list[Union["Calendar", "CalendarObjectResource"]]:
+        self, components: list[Calendar | CalendarObjectResource]
+    ) -> list[Calendar | CalendarObjectResource]:
         """
         Filters the components given according to the search
         criterias, and possibly expanding recurrences.
@@ -338,8 +427,8 @@ class Searcher(FilterMixin):
         raise NotImplementedError()
 
     def sort(
-        self, components: list[Union["Calendar", "CalendarObjectResource"]]
-    ) -> list[Union["Calendar", "CalendarObjectResource"]]:
+        self, components: list[Calendar | CalendarObjectResource]
+    ) -> list[Calendar | CalendarObjectResource]:
         """
         Sorts the components given according to the sort
         keys.
@@ -349,7 +438,7 @@ class Searcher(FilterMixin):
         """
         raise NotImplementedError()
 
-    def sorting_value(self, component: Union["Calendar", "CalendarObjectResource"]) -> tuple:
+    def sorting_value(self, component: Calendar | CalendarObjectResource) -> tuple:
         """
         Returns a sortable value from the component, based on the sort keys
         """
@@ -390,15 +479,29 @@ class Searcher(FilterMixin):
             if val is None:
                 ret.append(defaults.get(sort_key.lower(), ""))
                 continue
+
+            # Track if this is a text property (for collation)
+            # Apply collation BEFORE datetime/category conversion
+            is_text_property = isinstance(val, str) and sort_key in self._sort_collation
+
             if hasattr(val, "dt"):
                 val = val.dt
             elif hasattr(val, "cats"):
                 val = ",".join(val.cats)
             if hasattr(val, "strftime"):
                 val = val.strftime("%F%H%M%S")
+
+            # Apply collation only to text properties (not datetime strings)
+            if is_text_property and isinstance(val, str):
+                collation = self._sort_collation[sort_key]
+                locale = self._sort_locale.get(sort_key)
+                sort_key_fn = get_sort_key_function(collation, locale)
+                val = sort_key_fn(val)
+
             if reverse:
-                if isinstance(val, str):
-                    val = val.encode()
+                if isinstance(val, (str, bytes)):
+                    if isinstance(val, str):
+                        val = val.encode()
                     val = bytes(b ^ 0xFF for b in val)
                 else:
                     val = -val
@@ -406,7 +509,7 @@ class Searcher(FilterMixin):
 
         return ret
 
-    def _unwrap(self, component: Union["Calendar", "CalendarObjectResource"]) -> "Calendar":
+    def _unwrap(self, component: Calendar | CalendarObjectResource) -> Calendar:
         """
         To support the caldav library (and possibly other libraries where the
         icalendar component is wrapped)
@@ -422,8 +525,8 @@ class Searcher(FilterMixin):
         return component
 
     def _validate_and_normalize_component(
-        self, component: Union["Calendar", "Component", "CalendarObjectResource"]
-    ) -> list["Component"]:
+        self, component: Calendar | Component | CalendarObjectResource
+    ) -> list[Component]:
         """This method serves two purposes:
 
         1) Be liberal in what "component" it accepts and return
