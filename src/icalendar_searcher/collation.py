@@ -7,8 +7,8 @@ and case-insensitive comparisons when PyICU is not available.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from enum import Enum
-from typing import Callable, Optional
 
 # Try to import PyICU for advanced collation support
 try:
@@ -59,7 +59,7 @@ class CollationError(Exception):
 
 def get_collation_function(
     collation: Collation = Collation.BINARY,
-    locale: Optional[str] = None,
+    locale: str | None = None,
 ) -> Callable[[str, str], bool]:
     """Get a collation function for substring matching.
 
@@ -107,7 +107,7 @@ def get_collation_function(
 
 def get_sort_key_function(
     collation: Collation = Collation.BINARY,
-    locale: Optional[str] = None,
+    locale: str | None = None,
 ) -> Callable[[str], bytes]:
     """Get a collation function for generating sort keys.
 
@@ -168,7 +168,7 @@ def _case_insensitive_contains(needle: str, haystack: str) -> bool:
     return needle.lower() in haystack.lower()
 
 
-def _get_icu_contains(locale: Optional[str]) -> Callable[[str, str], bool]:
+def _get_icu_contains(locale: str | None) -> Callable[[str, str], bool]:
     """Get ICU-based substring matcher.
 
     Creates a collator instance and returns a function that uses it.
@@ -198,7 +198,7 @@ def _get_icu_contains(locale: Optional[str]) -> Callable[[str, str], bool]:
     return icu_contains
 
 
-def _get_icu_sort_key(locale: Optional[str]) -> Callable[[str], bytes]:
+def _get_icu_sort_key(locale: str | None) -> Callable[[str], bytes]:
     """Get ICU-based sort key function.
 
     Creates a collator instance and returns a function that generates sort keys.

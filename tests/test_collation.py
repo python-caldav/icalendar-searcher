@@ -1,6 +1,5 @@
 """Tests for text collation features."""
 
-import pytest
 from icalendar import Event, Todo
 
 from icalendar_searcher import Collation, Searcher

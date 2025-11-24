@@ -4,7 +4,7 @@ import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Union
 
 import recurring_ical_events
 from icalendar import Calendar, Component, Timezone
@@ -135,8 +135,8 @@ class Searcher(FilterMixin):
         value: Any,
         operator: str = "contains",
         case_sensitive: bool = True,
-        collation: Optional[Collation] = None,
-        locale: Optional[str] = None,
+        collation: Collation | None = None,
+        locale: str | None = None,
     ) -> None:
         """Adds a filter for some specific iCalendar property.
 
@@ -207,8 +207,8 @@ class Searcher(FilterMixin):
         key: str,
         reversed: bool = None,
         case_sensitive: bool = True,
-        collation: Optional[Collation] = None,
-        locale: Optional[str] = None,
+        collation: Collation | None = None,
+        locale: str | None = None,
     ) -> None:
         """Add a sort key for sorting components.
 
