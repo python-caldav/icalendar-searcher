@@ -149,13 +149,19 @@ class Searcher(FilterMixin):
         :param value: should adhere to the type defined in the RFC
         :param operator: Comparision operator ("contains", "==", etc)
         :param case_sensitive: If False, text comparisons are case-insensitive.
-                              Only applies to text properties. Default is True.
         :param collation: Advanced collation strategy for text comparison.
                          If specified, overrides case_sensitive parameter.
                          Only needed by power users for locale-aware collation.
         :param locale: Locale string (e.g., "de_DE") for locale-aware collation.
                       Only used with collation=Collation.LOCALE.
 
+        The case_sensitive parameter only applies to text properties.
+        The default has been made for case sensitive searches.  This
+        is contrary to the CalDAV standard, where case insensitive
+        searches are considered the default, but it's in accordance
+        with the CalDAV library, where case sensitive searches has
+        been the default.
+        
         For the operator, the following is (planned to be) supported:
 
         * contains - will do a substring match (A search for "summary"
@@ -170,7 +176,7 @@ class Searcher(FilterMixin):
 
         * <> or != - inqueality, both supported
 
-        * def, undef - will match if the property is (not) defined.  value can be set to None, will be ignored.
+        * def, undef - will match if the property is (not) defined.  value can be set to None, the value will be ignored.
 
         Examples:
             # Case-insensitive search (simple API)
@@ -183,11 +189,26 @@ class Searcher(FilterMixin):
             searcher.add_property_filter("SUMMARY", "Müller",
                                         collation=Collation.LOCALE,
                                         locale="de_DE")
+
         """
+        ## TODO: special handling of property "category" vs "categories".
+        ## categories should be a list of categories, possibly with only one element.
+        ## A substring match for "categories" will return true if the categories given are contained in the category list in the object.  A == match will return true if all the cateogries given matches all the categories in the object.  Seach for category=MIL will not return category "FAMILY".  If a string containing , is given, the string will be split into a list.
+        ## category is a single category.  Substring search for category "MIL" will return objects with category "FAMILY".  If a comma is encountered, the comma is considered to be a part of the category name.
+        ## TODO: above logic is not implemented yet.  Search for "category" should currently break as "category" is not a valid property.
         if operator not in ("contains", "undef", "=="):
             raise NotImplementedError(f"The operator {operator} is not supported yet.")
         if operator != "undef":
-            self._property_filters[key] = types_factory.for_property(key)(value)
+            ## TODO: is this special treatment of categories a good thing?
+            ## Should we consider that also other values maybe could go through the same logic?
+            if key == 'categories' and isinstance(value, str):
+                ## Can we just assume that if someone asks for FAMILY,FINANCE, they want
+                ## a match on anything having both those two categories set, and that
+                ## they don't want to search for a category with name "FAMILY,FINANCE"?
+                fact = types_factory.for_property(key)
+                self._property_filters[key] = fact(fact.from_ical(value))
+            else:
+                self._property_filters[key] = types_factory.for_property(key)(value)
         self._property_operator[key] = operator
 
         # Determine collation strategy

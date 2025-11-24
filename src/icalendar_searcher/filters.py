@@ -190,7 +190,15 @@ class FilterMixin:
                         filter_value = set(filter_value.split(","))
                 elif isinstance(filter_value, Iterable):
                     ## TODO: probably this is irrelevant dead code
-                    filter_value = set(filter_value)
+                    # Convert iterable to set, splitting on commas if strings contain them
+                    result_set = set()
+                    for item in filter_value:
+                        item_str = str(item)
+                        if "," in item_str:
+                            result_set.update(item_str.split(","))
+                        else:
+                            result_set.add(item_str)
+                    filter_value = result_set
                 comp_value = set([str(x) for x in comp_value.cats])
             if operator == "undef":
                 ## Property should NOT be defined
@@ -201,16 +209,24 @@ class FilterMixin:
                 if key not in component:
                     return False
                 if key.lower() == "categories":
-                    # Get collation function for category matching
-                    collation_fn = get_collation_function(collation, locale)
+                    # For categories, "contains" means filter categories is a subset of component categories
+                    # filter_value can be a string (single category) or set (multiple categories)
                     if isinstance(filter_value, str):
-                        # Check if filter_value is in any category using collation
-                        return any(collation_fn(filter_value, x) for x in comp_value)
-                    elif isinstance(filter_value, set):
-                        # Check if all filter values are in comp_value using collation
+                        # Single category: check if it's in component categories
+                        if collation == Collation.CASE_INSENSITIVE:
+                            return any(filter_value.lower() == cv.lower() for cv in comp_value)
+                        else:
+                            return filter_value in comp_value
+                    else:
+                        # Multiple categories (set): check if all are in component categories (subset check)
+                        assert isinstance(filter_value, set), f"Expected set but got {type(filter_value)}"
                         for fv in filter_value:
-                            if not any(collation_fn(fv, cv) for cv in comp_value):
-                                return False
+                            if collation == Collation.CASE_INSENSITIVE:
+                                if not any(fv.lower() == cv.lower() for cv in comp_value):
+                                    return False
+                            else:
+                                if fv not in comp_value:
+                                    return False
                         return True
 
                 ## Convert to string for substring matching
@@ -225,6 +241,41 @@ class FilterMixin:
                 ## Property should exactly match the filter value
                 if key not in component:
                     return False
+
+                ## For categories, check exact set equality with collation support
+                if key.lower() == "categories":
+                    # filter_value can be a string (single category) or set (multiple categories)
+                    assert isinstance(comp_value, set), f"Expected set but got {type(comp_value)}"
+
+                    if isinstance(filter_value, str):
+                        # Single category with "==" operator: component must have exactly that one category
+                        if len(comp_value) != 1:
+                            return False
+                        if collation == Collation.CASE_INSENSITIVE:
+                            return filter_value.lower() == list(comp_value)[0].lower()
+                        else:
+                            return filter_value in comp_value
+                    else:
+                        # Multiple categories (set): check exact equality with collation
+                        assert isinstance(filter_value, set), f"Expected set but got {type(filter_value)}"
+                        if len(filter_value) != len(comp_value):
+                            return False
+                        # Check if all filter categories have a matching component category
+                        for fv in filter_value:
+                            found = False
+                            for cv in comp_value:
+                                if collation == Collation.CASE_INSENSITIVE:
+                                    if fv.lower() == cv.lower():
+                                        found = True
+                                        break
+                                else:
+                                    if fv == cv:
+                                        found = True
+                                        break
+                            if not found:
+                                return False
+                        return True
+
                 ## Compare the values This is tricky, as the values
                 ## may have different types.  TODO: we should add more
                 ## logic for the different property types.  Maybe get
@@ -233,6 +284,18 @@ class FilterMixin:
                     return True
                 if isinstance(filter_value, str) and isinstance(comp_value, set):
                     return filter_value in comp_value
+
+                # For text properties, use collation for exact match comparison
+                if isinstance(filter_value, (str, vText)) and isinstance(comp_value, (str, vText)):
+                    from .collation import _case_insensitive_contains, _binary_contains
+                    comp_str = str(comp_value)
+                    filter_str = str(filter_value)
+
+                    # For case-insensitive exact match, compare lowercased versions
+                    if collation == Collation.CASE_INSENSITIVE:
+                        return comp_str.lower() == filter_str.lower()
+                    # For other collations, fall through to default comparison
+
                 return False
             else:
                 ## This shouldn't happen as add_property_filter validates operators

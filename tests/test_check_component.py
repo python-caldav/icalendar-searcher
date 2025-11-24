@@ -102,12 +102,12 @@ UID:652e3718-c54c-11f0-9203-1c1bb5134174
 END:VTODO
 END:VCALENDAR"""
     cal = Calendar.from_ical(data)
-    for prop_filter in (("categories", "outdoor", "=="), ("categories", "out")):
+    for prop_filter in (("categories", "outdoor", "=="),):
         for searcher in (Searcher(), Searcher(todo=True)):
             searcher.add_property_filter(*prop_filter)
             assert searcher._check_property_filters(cal.subcomponents[0])
             assert searcher.check_component(cal)
-    for prop_filter in (("categories", "out", "=="), ("categories", "outdoors")):
+    for prop_filter in (("categories", "out", "=="), ("categories", "outdoors"), ("categories", "out")):
         for searcher in (Searcher(), Searcher(event=True), Searcher(todo=True)):
             searcher.add_property_filter(*prop_filter)
             assert not searcher._check_property_filters(cal.subcomponents[0])
@@ -140,14 +140,14 @@ END:VCALENDAR"""
         ("categories", "winter,outdoor,family", "=="),
         ("categories", "winter,outdoor"),
         ("categories", ("winter", "outdoor")),
-        ("categories", "outdoor", "=="),
-        ("categories", "out"),
     ):
         for searcher in (Searcher(), Searcher(todo=True)):
             searcher.add_property_filter(*prop_filter)
             assert searcher._check_property_filters(cal.subcomponents[0])
             assert searcher.check_component(cal)
     for prop_filter in (
+        ("categories", "outdoor", "=="),
+        ("categories", "out"),
         ("categories", "out", "=="),
         ("categories", "outdoors"),
         ("categories", "outdoor,summer"),

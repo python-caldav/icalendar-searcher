@@ -72,6 +72,11 @@ def test_property_filter_equals_match() -> None:
     result = searcher.check_component(event)
     assert result, "Event should match with exact equality"
 
+    searcher = Searcher(event=True)
+    searcher.add_property_filter("SUMMARY", "team meeting", operator="==", case_sensitive=False)
+
+    result = searcher.check_component(event)
+    assert result, "Event should match with case insensitive equality"
 
 def test_property_filter_equals_no_match() -> None:
     """Property filter with '==' operator should not match different value."""

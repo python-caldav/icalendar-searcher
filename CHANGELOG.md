@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Category filtering now properly respects collation settings for case-insensitive matching
+- Category "contains" operator now correctly checks for subset (exact category names) rather than substring matching
+- Category "==" operator now properly supports case-insensitive exact matching
+- Text properties with "==" operator now support case-insensitive comparison when `case_sensitive=False`
+- Category preprocessing now correctly handles tuples with comma-separated strings
+
 ## [0.2.0] - 2025-11-24
 
 Text filtering can be done both case-sensitive and case-insensitive - we need to support both of them.  And we also may need to support various collations.  DISCLAIMER: While I could easily add case insensitive/sensitive filtering myself, as soon as collations was tossed into the equation I considered the AI could do it better and faster than me.  So 0.2.0 is AI-generated code, but curated by a human.

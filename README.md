@@ -36,7 +36,7 @@ This is a spin-off from the python caldav project, started by Tobias Brox in 202
 
 ## AI
 
-The author has been experimenting a bit with AI usage while creating this project, both GitHub Copilot and Claude has been tested.  Most of the test code has been created by the AI.  AI has also been utilized a bit for refactoring, bug hunting, and a little bit code generation, but most of the "business logic" was written by me.
+The author has been experimenting a bit with AI usage while creating this project, both GitHub Copilot and Claude has been tested.  Most of the test code has been created by the AI.  AI has also been utilized a bit for refactoring, bug hunting, and a little bit code generation (particularly wrg of the collations support), but most of the "business logic" was written by me.
 
 While all the AI-generated changes in the business logic has been looked through thoroughly, very little QA has been done on the test code.
 
