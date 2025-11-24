@@ -1,5 +1,7 @@
 """Main Searcher class for icalendar component filtering and sorting."""
 
+from __future__ import annotations
+
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, field
