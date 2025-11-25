@@ -167,13 +167,16 @@ class FilterMixin:
         """
         for key, operator in self._property_operator.items():
             filter_value = self._property_filters.get(key)
-            comp_value = component.get(key)
+
+            # Map "category" (singular) to "CATEGORIES" (plural) in the component
+            comp_key = "CATEGORIES" if key.lower() == "category" else key
+            comp_value = component.get(comp_key)
 
             # Get collation settings for this property
             collation = self._property_collation.get(key, Collation.BINARY)
             locale = self._property_locale.get(key)
 
-            ## Category needs some special handling
+            ## "categories" (plural) needs special preprocessing - split on commas
             if key.lower() == "categories" and comp_value is not None and filter_value is not None:
                 if isinstance(filter_value, vCategory):
                     ## TODO: This special case, handling one element different from several, is a bit bad indeed
@@ -202,11 +205,23 @@ class FilterMixin:
                 comp_value = set([str(x) for x in comp_value.cats])
             if operator == "undef":
                 ## Property should NOT be defined
-                if key in component:
+                if comp_key in component:
                     return False
             elif operator == "contains":
                 ## Property should contain the filter value (substring match)
-                if key not in component:
+                if comp_key not in component:
+                    return False
+                if key.lower() == "category":
+                    # "category" (singular) does substring matching within category names
+                    # comp_value is a vCategory object
+                    if comp_value is not None:
+                        comp_categories = set([str(x) for x in comp_value.cats])
+                        filter_str = str(filter_value)
+                        # Check if filter_str is a substring of any category
+                        collation_fn = get_collation_function(collation, locale)
+                        for cat in comp_categories:
+                            if collation_fn(filter_str, cat):
+                                return True
                     return False
                 if key.lower() == "categories":
                     # For categories, "contains" means filter categories is a subset of component categories
@@ -219,7 +234,9 @@ class FilterMixin:
                             return filter_value in comp_value
                     else:
                         # Multiple categories (set): check if all are in component categories (subset check)
-                        assert isinstance(filter_value, set), f"Expected set but got {type(filter_value)}"
+                        assert isinstance(filter_value, set), (
+                            f"Expected set but got {type(filter_value)}"
+                        )
                         for fv in filter_value:
                             if collation == Collation.CASE_INSENSITIVE:
                                 if not any(fv.lower() == cv.lower() for cv in comp_value):
@@ -239,7 +256,22 @@ class FilterMixin:
                     return False
             elif operator == "==":
                 ## Property should exactly match the filter value
-                if key not in component:
+                if comp_key not in component:
+                    return False
+
+                ## For "category" (singular), check exact match to at least one category name
+                if key.lower() == "category":
+                    if comp_value is not None:
+                        comp_categories = set([str(x) for x in comp_value.cats])
+                        filter_str = str(filter_value)
+                        # Check if filter_str exactly matches any category
+                        for cat in comp_categories:
+                            if collation == Collation.CASE_INSENSITIVE:
+                                if filter_str.lower() == cat.lower():
+                                    return True
+                            else:
+                                if filter_str == cat:
+                                    return True
                     return False
 
                 ## For categories, check exact set equality with collation support
@@ -257,7 +289,9 @@ class FilterMixin:
                             return filter_value in comp_value
                     else:
                         # Multiple categories (set): check exact equality with collation
-                        assert isinstance(filter_value, set), f"Expected set but got {type(filter_value)}"
+                        assert isinstance(filter_value, set), (
+                            f"Expected set but got {type(filter_value)}"
+                        )
                         if len(filter_value) != len(comp_value):
                             return False
                         # Check if all filter categories have a matching component category
@@ -287,7 +321,6 @@ class FilterMixin:
 
                 # For text properties, use collation for exact match comparison
                 if isinstance(filter_value, (str, vText)) and isinstance(comp_value, (str, vText)):
-                    from .collation import _case_insensitive_contains, _binary_contains
                     comp_str = str(comp_value)
                     filter_str = str(filter_value)
 

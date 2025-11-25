@@ -126,9 +126,7 @@ def test_case_insensitive_categories() -> None:
     event.add("categories", ["Work", "Important"])
 
     searcher = Searcher(event=True)
-    searcher.add_property_filter(
-        "CATEGORIES", "work", operator="contains", case_sensitive=False
-    )
+    searcher.add_property_filter("CATEGORIES", "work", operator="contains", case_sensitive=False)
 
     result = searcher.check_component(event)
     assert result, "Case-insensitive category search should match 'work' in 'Work'"
@@ -294,7 +292,9 @@ def test_pyicu_not_available_unicode_collation() -> None:
         searcher.check_component(event)
 
     assert "PyICU" in str(exc_info.value), "Error should mention PyICU requirement"
-    assert "icalendar-searcher[collation]" in str(exc_info.value), "Error should mention installation command"
+    assert "icalendar-searcher[collation]" in str(exc_info.value), (
+        "Error should mention installation command"
+    )
 
 
 @patch("icalendar_searcher.collation.HAS_PYICU", False)

@@ -107,7 +107,11 @@ END:VCALENDAR"""
             searcher.add_property_filter(*prop_filter)
             assert searcher._check_property_filters(cal.subcomponents[0])
             assert searcher.check_component(cal)
-    for prop_filter in (("categories", "out", "=="), ("categories", "outdoors"), ("categories", "out")):
+    for prop_filter in (
+        ("categories", "out", "=="),
+        ("categories", "outdoors"),
+        ("categories", "out"),
+    ):
         for searcher in (Searcher(), Searcher(event=True), Searcher(todo=True)):
             searcher.add_property_filter(*prop_filter)
             assert not searcher._check_property_filters(cal.subcomponents[0])
@@ -154,6 +158,24 @@ END:VCALENDAR"""
         ("categories", ("outdoor,winter"), "=="),
     ):
         for searcher in (Searcher(), Searcher(event=True), Searcher(todo=True)):
+            searcher.add_property_filter(*prop_filter)
+            assert not searcher._check_property_filters(cal.subcomponents[0])
+            assert not searcher.check_component(cal)
+    # "category" (singular) does substring matching within category names
+    for prop_filter in (
+        ("category", "outdoor", "=="),  # Exact match to one category
+        ("category", "out"),  # Substring match within "outdoor"
+    ):
+        for searcher in (Searcher(), Searcher(todo=True)):
+            searcher.add_property_filter(*prop_filter)
+            assert searcher._check_property_filters(cal.subcomponents[0])
+            assert searcher.check_component(cal)
+    # "category" (singular) should NOT match these
+    for prop_filter in (
+        ("category", "family,outdoor,winter", "=="),  # No category literally equals this
+        ("category", "out", "=="),  # No category exactly equals "out"
+    ):
+        for searcher in (Searcher(), Searcher(todo=True)):
             searcher.add_property_filter(*prop_filter)
             assert not searcher._check_property_filters(cal.subcomponents[0])
             assert not searcher.check_component(cal)

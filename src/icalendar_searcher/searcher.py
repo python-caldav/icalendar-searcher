@@ -146,6 +146,8 @@ class Searcher(FilterMixin):
         LOCATION, DESCRIPTION, DTSTART, STATUS, CLASS, etc
 
         :param key: must be an icalendar property, i.e. SUMMARY
+                   Special virtual property "category" (singular) is also supported
+                   for substring matching within category names
         :param value: should adhere to the type defined in the RFC
         :param operator: Comparision operator ("contains", "==", etc)
         :param case_sensitive: If False, text comparisons are case-insensitive.
@@ -161,7 +163,19 @@ class Searcher(FilterMixin):
         searches are considered the default, but it's in accordance
         with the CalDAV library, where case sensitive searches has
         been the default.
-        
+
+        **Special handling for categories:**
+
+        - **"categories"** (plural): Exact category name matching
+          - "contains": subset check (all filter categories must be in component)
+          - "==": exact set equality (same categories, order doesn't matter)
+          - Commas in filter values split into multiple categories
+
+        - **"category"** (singular): Substring matching within category names
+          - "contains": substring match (e.g., "out" matches "outdoor")
+          - "==": exact match to at least one category name
+          - Commas in filter values treated as literal characters
+
         For the operator, the following is (planned to be) supported:
 
         * contains - will do a substring match (A search for "summary"
@@ -191,24 +205,34 @@ class Searcher(FilterMixin):
                                         locale="de_DE")
 
         """
-        ## TODO: special handling of property "category" vs "categories".
-        ## categories should be a list of categories, possibly with only one element.
-        ## A substring match for "categories" will return true if the categories given are contained in the category list in the object.  A == match will return true if all the cateogries given matches all the categories in the object.  Seach for category=MIL will not return category "FAMILY".  If a string containing , is given, the string will be split into a list.
-        ## category is a single category.  Substring search for category "MIL" will return objects with category "FAMILY".  If a comma is encountered, the comma is considered to be a part of the category name.
-        ## TODO: above logic is not implemented yet.  Search for "category" should currently break as "category" is not a valid property.
+        ## Special handling of property "category" (singular) vs "categories" (plural).
+        ## "categories" (plural): list of categories with exact matching (no substring)
+        ##   - "contains": subset check (all filter categories must be in component)
+        ##   - "==": exact set equality (same categories, order doesn't matter)
+        ##   - Commas split into multiple categories
+        ## "category" (singular): substring matching within category names
+        ##   - "contains": substring match (e.g., "out" matches "outdoor")
+        ##   - "==": exact match to at least one category name
+        ##   - Commas NOT split, treated as literal part of category name
+
         if operator not in ("contains", "undef", "=="):
             raise NotImplementedError(f"The operator {operator} is not supported yet.")
         if operator != "undef":
-            ## TODO: is this special treatment of categories a good thing?
-            ## Should we consider that also other values maybe could go through the same logic?
-            if key == 'categories' and isinstance(value, str):
-                ## Can we just assume that if someone asks for FAMILY,FINANCE, they want
-                ## a match on anything having both those two categories set, and that
-                ## they don't want to search for a category with name "FAMILY,FINANCE"?
-                fact = types_factory.for_property(key)
+            ## Map "category" to "categories" for types_factory lookup
+            property_key = "categories" if key.lower() == "category" else key
+
+            ## Special treatment for "categories" (plural): split on commas
+            if key.lower() == "categories" and isinstance(value, str):
+                ## If someone asks for FAMILY,FINANCE, they want a match on anything
+                ## having both those categories set, not a category literally named "FAMILY,FINANCE"
+                fact = types_factory.for_property(property_key)
                 self._property_filters[key] = fact(fact.from_ical(value))
+            elif key.lower() == "category":
+                ## For "category" (singular), store as string (no comma splitting)
+                ## This allows substring matching within category names
+                self._property_filters[key] = value
             else:
-                self._property_filters[key] = types_factory.for_property(key)(value)
+                self._property_filters[key] = types_factory.for_property(property_key)(value)
         self._property_operator[key] = operator
 
         # Determine collation strategy

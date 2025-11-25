@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **"category" (singular) property filter**: New virtual property for substring matching within category names
+  - `"category"` with "contains" operator does substring matching (e.g., "out" matches "outdoor")
+  - `"category"` with "==" operator matches if value exactly equals at least one category name
+  - Commas in filter values are treated as literal characters, not split into multiple categories
+  - Complements existing `"categories"` (plural) which does exact category name matching
+
 ### Fixed
 - Category filtering now properly respects collation settings for case-insensitive matching
 - Category "contains" operator now correctly checks for subset (exact category names) rather than substring matching
