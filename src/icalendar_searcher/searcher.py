@@ -214,20 +214,20 @@ class Searcher(FilterMixin):
         ##   - "contains": substring match (e.g., "out" matches "outdoor")
         ##   - "==": exact match to at least one category name
         ##   - Commas NOT split, treated as literal part of category name
-
+        key = key.lower()
         if operator not in ("contains", "undef", "=="):
             raise NotImplementedError(f"The operator {operator} is not supported yet.")
         if operator != "undef":
             ## Map "category" to "categories" for types_factory lookup
-            property_key = "categories" if key.lower() == "category" else key
+            property_key = "categories" if key == "category" else key
 
             ## Special treatment for "categories" (plural): split on commas
-            if key.lower() == "categories" and isinstance(value, str):
+            if key == "categories" and isinstance(value, str):
                 ## If someone asks for FAMILY,FINANCE, they want a match on anything
                 ## having both those categories set, not a category literally named "FAMILY,FINANCE"
                 fact = types_factory.for_property(property_key)
                 self._property_filters[key] = fact(fact.from_ical(value))
-            elif key.lower() == "category":
+            elif key == "category":
                 ## For "category" (singular), store as string (no comma splitting)
                 ## This allows substring matching within category names
                 self._property_filters[key] = value
@@ -284,6 +284,7 @@ class Searcher(FilterMixin):
             # Advanced: locale-aware sorting (requires PyICU)
             searcher.add_sort_key("SUMMARY", collation=Collation.LOCALE, locale="de_DE")
         """
+        key = key.lower()
         assert key in types_factory.types_map or key in (
             "isnt_overdue",
             "hasnt_started",
@@ -522,7 +523,7 @@ class Searcher(FilterMixin):
         for sort_key, reverse in self._sort_keys:
             val = comp.get(sort_key, None)
             if val is None:
-                ret.append(defaults.get(sort_key.lower(), ""))
+                ret.append(defaults.get(sort_key, ""))
                 continue
 
             # Track if this is a text property (for collation)

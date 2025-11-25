@@ -169,7 +169,7 @@ class FilterMixin:
             filter_value = self._property_filters.get(key)
 
             # Map "category" (singular) to "CATEGORIES" (plural) in the component
-            comp_key = "CATEGORIES" if key.lower() == "category" else key
+            comp_key = "CATEGORIES" if key == "category" else key
             comp_value = component.get(comp_key)
 
             # Get collation settings for this property
@@ -177,7 +177,7 @@ class FilterMixin:
             locale = self._property_locale.get(key)
 
             ## "categories" (plural) needs special preprocessing - split on commas
-            if key.lower() == "categories" and comp_value is not None and filter_value is not None:
+            if key == "categories" and comp_value is not None and filter_value is not None:
                 if isinstance(filter_value, vCategory):
                     ## TODO: This special case, handling one element different from several, is a bit bad indeed
                     if len(filter_value.cats) == 1:
@@ -211,7 +211,7 @@ class FilterMixin:
                 ## Property should contain the filter value (substring match)
                 if comp_key not in component:
                     return False
-                if key.lower() == "category":
+                if key == "category":
                     # "category" (singular) does substring matching within category names
                     # comp_value is a vCategory object
                     if comp_value is not None:
@@ -223,7 +223,7 @@ class FilterMixin:
                             if collation_fn(filter_str, cat):
                                 return True
                     return False
-                if key.lower() == "categories":
+                if key == "categories":
                     # For categories, "contains" means filter categories is a subset of component categories
                     # filter_value can be a string (single category) or set (multiple categories)
                     if isinstance(filter_value, str):
@@ -260,7 +260,7 @@ class FilterMixin:
                     return False
 
                 ## For "category" (singular), check exact match to at least one category name
-                if key.lower() == "category":
+                if key == "category":
                     if comp_value is not None:
                         comp_categories = set([str(x) for x in comp_value.cats])
                         filter_str = str(filter_value)
@@ -275,7 +275,7 @@ class FilterMixin:
                     return False
 
                 ## For categories, check exact set equality with collation support
-                if key.lower() == "categories":
+                if key == "categories":
                     # filter_value can be a string (single category) or set (multiple categories)
                     assert isinstance(comp_value, set), f"Expected set but got {type(comp_value)}"
 

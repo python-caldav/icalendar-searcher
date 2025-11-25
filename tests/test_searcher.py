@@ -8,10 +8,10 @@ def test_add_property_filter_undef() -> None:
     not attempt to coerce the value through TypesFactory (since value is
     ignored for 'undef')."""
     s = Searcher()
-    s.add_property_filter("SUMMARY", None, operator="undef")
-    assert "SUMMARY" in s._property_operator
-    assert s._property_operator["SUMMARY"] == "undef"
-    assert "SUMMARY" not in s._property_filters
+    s.add_property_filter("summary", None, operator="undef")
+    assert "summary" in s._property_operator
+    assert s._property_operator["summary"] == "undef"
+    assert "summary" not in s._property_filters
 
 
 def test_add_property_filter_contains() -> None:
@@ -19,17 +19,17 @@ def test_add_property_filter_contains() -> None:
     and coerce the value through TypesFactory."""
     s = Searcher()
     s = Searcher()
-    s.add_property_filter("SUMMARY", "rain", operator="contains")
-    assert "SUMMARY" in s._property_operator
-    assert s._property_operator["SUMMARY"] == "contains"
-    assert "SUMMARY" in s._property_filters
+    s.add_property_filter("summary", "rain", operator="contains")
+    assert "summary" in s._property_operator
+    assert s._property_operator["summary"] == "contains"
+    assert "summary" in s._property_filters
 
 
 def test_add_property_filter_unsupported() -> None:
     """Unsupported operators should raise NotImplementedError."""
     s = Searcher()
     with pytest.raises(NotImplementedError):
-        s.add_property_filter("SUMMARY", "x", operator="\\o/")
+        s.add_property_filter("summary", "x", operator="\\o/")
 
 
 def test_add_sort_key_special() -> None:
