@@ -424,7 +424,6 @@ class TestPyICUCollations:
         "text,search",
         [
             ("Blåbærsyltetøy", "blåbærsyltetøy"),
-            ("İstanbul", "istanbul"),
             ("Москва", "москва"),
         ],
     )
@@ -441,6 +440,33 @@ class TestPyICUCollations:
             result = searcher.check_component(cal)
             # With UNICODE collation, case-insensitive matching should work
             assert result, f"Expected {text!r} to match {search!r} with UNICODE collation"
+        except ImportError:
+            pytest.skip("PyICU not installed")
+
+    def test_turkish_i_requires_locale(self) -> None:
+        """Test that Turkish İ/i requires Turkish locale, not just UNICODE collation."""
+        try:
+            import icu  # noqa: F401
+
+            cal = make_event("İstanbul")
+
+            # With UNICODE (root locale), İ does NOT match i
+            # Turkish İ is U+0130, which is distinct from ASCII i (U+0069)
+            searcher_unicode = Searcher()
+            searcher_unicode.add_property_filter(
+                "SUMMARY", "istanbul", operator="==", collation=Collation.UNICODE
+            )
+            result_unicode = searcher_unicode.check_component(cal)
+            # Root locale doesn't do Turkish-specific case folding
+            assert not result_unicode, "Root locale should not match Turkish İ with i"
+
+            # With Turkish locale, İ DOES match i
+            searcher_turkish = Searcher()
+            searcher_turkish.add_property_filter(
+                "SUMMARY", "istanbul", operator="==", collation=Collation.LOCALE, locale="tr_TR"
+            )
+            result_turkish = searcher_turkish.check_component(cal)
+            assert result_turkish, "Turkish locale should match İ with i"
         except ImportError:
             pytest.skip("PyICU not installed")
 
