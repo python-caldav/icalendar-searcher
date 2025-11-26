@@ -72,14 +72,24 @@ For advanced Unicode and locale-aware text comparison, install with:
 pip install 'icalendar-searcher[collation]'
 ```
 
-Then use locale-specific sorting:
+Locale-specific collation is useful for proper handling of language-specific characters:
 
 ```python
 from icalendar_searcher.collation import Collation
 
-searcher.add_property_filter("SUMMARY", "Müller",
+# Turkish locale: İstanbul matches "istanbul" (Turkish İ → i)
+searcher.add_property_filter("LOCATION", "istanbul",
                             collation=Collation.LOCALE,
-                            locale="de_DE")
+                            locale="tr_TR",
+                            case_sensitive=False)
+
+# Without Turkish locale, İstanbul won't match "istanbul"
+searcher.add_property_filter("LOCATION", "istanbul",
+                            collation=Collation.UNICODE,
+                            case_sensitive=False)  # Won't match İstanbul
+
+# Locale-aware sorting (e.g., Norwegian sorts æ, ø, å after z)
+searcher.add_sort_key("SUMMARY", collation=Collation.LOCALE, locale="nb_NO")
 ```
 
 ## Related projects
