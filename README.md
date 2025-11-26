@@ -12,23 +12,91 @@ This library should contain logic for searching, filtering and sorting icalendar
 
 No proper usage documentation has been written yet, sorry.  There are tons of inline comments and docstrings though.  The AI has contributed with quite some verbose comments in the test code, but little of it has been exposed to any proper QA.
 
+### Basic Example
+
+```python
+from icalendar_searcher import Searcher
+from datetime import datetime
+
+# Create a searcher with filters
+searcher = Searcher(
+    event=True,  # Only events
+    start=datetime(2025, 1, 1),
+    end=datetime(2025, 12, 31)
+)
+
+# Add property filters
+searcher.add_property_filter("SUMMARY", "meeting", operator="contains")
+searcher.add_property_filter("LOCATION", "Office", operator="contains", case_sensitive=False)
+
+# Check if a component matches
+result = searcher.check_component(calendar)
+```
+
+### Case-Sensitive vs Case-Insensitive Filtering
+
+By default, text filtering is **case-sensitive**. You can make it case-insensitive:
+
+```python
+# Case-insensitive search (simple API)
+searcher.add_property_filter("SUMMARY", "meeting", case_sensitive=False)
+
+# Case-sensitive search (default)
+searcher.add_property_filter("SUMMARY", "Meeting")
+```
+
+Case-insensitivity is not straight-forward.  It may cause non-deterministic sort results, and there may be problems with unicode characters - i.e., according to the CalDAV standard, case-insensitivity should only apply to ASCII-characters - causing mismatches between naïve and NAÏVE, cliché and CLICHÉ, smörgåsbord and SMØRGÅSBORD, not to forget millions of words in non-English languages, complete non-latin scripts, etc.
+
+### Category Filtering
+
+Two virtual properties are available for filtering by categories:
+
+- **"categories"** (plural): Categories is considered to be a set of categories to be matched with the set of categories found in the event.  If categories is given as a string, it will be split by the commas.
+- **"category"** (singular): Category is considered to be a string, to be matched literally towards at least one of the categories in the event.
+
+Examples:
+
+```python
+# Match events with both "WORK" and "URGENT" categories (exact match)
+searcher.add_property_filter("categories", "WORK,URGENT", operator="contains")
+
+# Match events where any category contains "out" (e.g., "outdoor", "outing")
+searcher.add_property_filter("category", "out", operator="contains")
+```
+
+### Advanced Collation (requires PyICU)
+
+For advanced Unicode and locale-aware text comparison, install with:
+
+```bash
+pip install 'icalendar-searcher[collation]'
+```
+
+Then use locale-specific sorting:
+
+```python
+from icalendar_searcher.collation import Collation
+
+searcher.add_property_filter("SUMMARY", "Müller",
+                            collation=Collation.LOCALE,
+                            locale="de_DE")
+```
+
 ## Related projects
 
 * The project depends on the [icalendar](https://github.com/collective/icalendar) library, all calendar contents handled by this library is coming in and out as ``icalendar.Component`` or ``icalendar.Calendar``.  However, the library should also support wrapped objects (like instances of the ``caldav.Event`` class).
 * The project depends on the [recurring-ical-events](https://github.com/niccokunzmann/python-recurring-ical-events) library for expanding recurrence sets.
 * The project is used by the [Python CalDAV client library](https://github.com/python-caldav/caldav)
 
-## Status as of v0.x.x
+## Status as of v0.3.1
 
-This library still has some stubbed implementations:
+This library still has some stubbed implementations: in particular `searcher.filter()` and `searcher.sort`.  Since the logic has been implemented, those should be really straight-forward to implement, it's just a matter of deciding the acceptable input and output parameter types.
 
-* While `searcher.check_component(component)` can check the search filters on one component (or recurrence set) and even expand recurring objects, the `searcher.filter()`-method is not yet implemented.  It should be a simple thing, it's just some design considerations on weather to support input/output as `icalendar.Calendar`-objects, wrapper objects from the CalDAV library, lists or whatever.
-* Same goes with `searcher.sort()`.  There is implemented a `searcher.sorting_value(component)` though.
-* Only operators supported so far is ==, contains and undef.  Other operators like !=/<>, <, <=, ~, etc has not been implemented.
+Only operators supported so far is ==, contains and undef.  Other operators like !=/<>, <, <=, ~, etc has not been implemented.
 
-As for now.  The maintainer will urgently prioritize the bare minimum needed for usage in the CalDAV library.
+As for now, the maintainers primary priority is to develop whatever is needed for supporting the next release of the CalDAV library.
 
-According to the SemVer rules, it's OK to still change the API in 0.x-versions, but the current API is likely to be quite stable.  There exist no changelog as for now, but it will be made prior to the 1.0-release.
+According to the SemVer rules, it's OK to still change the API in 0.x-versions, but the current API is likely to be quite stable.  See [CHANGELOG.md](CHANGELOG.md) for version history and breaking changes.
 
 ## History
 
