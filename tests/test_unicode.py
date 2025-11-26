@@ -442,7 +442,7 @@ class TestPyICUCollations:
             cal = make_event(text)
             searcher = Searcher()
             searcher.add_property_filter(
-                "SUMMARY", search, operator="==", collation=Collation.UNICODE
+                "SUMMARY", search, operator="==", collation=Collation.UNICODE, case_sensitive=False
             )
             result = searcher.check_component(cal)
             # With UNICODE collation, case-insensitive matching should work
@@ -461,7 +461,11 @@ class TestPyICUCollations:
             # Turkish İ is U+0130, which is distinct from ASCII i (U+0069)
             searcher_unicode = Searcher()
             searcher_unicode.add_property_filter(
-                "SUMMARY", "istanbul", operator="==", collation=Collation.UNICODE
+                "SUMMARY",
+                "istanbul",
+                operator="==",
+                collation=Collation.UNICODE,
+                case_sensitive=False,
             )
             result_unicode = searcher_unicode.check_component(cal)
             # Root locale doesn't do Turkish-specific case folding
@@ -470,7 +474,12 @@ class TestPyICUCollations:
             # With Turkish locale, İ DOES match i
             searcher_turkish = Searcher()
             searcher_turkish.add_property_filter(
-                "SUMMARY", "istanbul", operator="==", collation=Collation.LOCALE, locale="tr_TR"
+                "SUMMARY",
+                "istanbul",
+                operator="==",
+                collation=Collation.LOCALE,
+                locale="tr_TR",
+                case_sensitive=False,
             )
             result_turkish = searcher_turkish.check_component(cal)
             assert result_turkish, "Turkish locale should match İ with i"
@@ -514,6 +523,7 @@ class TestPyICUCollations:
                 operator="==",
                 collation=Collation.LOCALE,
                 locale="tr_TR",
+                case_sensitive=False,
             )
             # With Turkish locale, İ lowercases to i, I lowercases to ı
             result = searcher.check_component(cal_i_dotted)

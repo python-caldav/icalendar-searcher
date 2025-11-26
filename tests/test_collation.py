@@ -250,7 +250,7 @@ def test_pyicu_unicode_collation_with_pyicu() -> None:
 
     searcher = Searcher(event=True)
     searcher.add_property_filter(
-        "SUMMARY", "test", operator="contains", collation=Collation.UNICODE
+        "SUMMARY", "test", operator="contains", collation=Collation.UNICODE, case_sensitive=False
     )
 
     result = searcher.check_component(event)
@@ -267,7 +267,12 @@ def test_pyicu_locale_collation_with_pyicu() -> None:
 
     searcher = Searcher(event=True)
     searcher.add_property_filter(
-        "SUMMARY", "müller", operator="contains", collation=Collation.LOCALE, locale="de_DE"
+        "SUMMARY",
+        "müller",
+        operator="contains",
+        collation=Collation.LOCALE,
+        locale="de_DE",
+        case_sensitive=False,
     )
 
     result = searcher.check_component(event)
