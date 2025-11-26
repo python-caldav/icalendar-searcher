@@ -421,17 +421,15 @@ class TestPyICUCollations:
     """Tests requiring PyICU for UNICODE and LOCALE collations."""
 
     @pytest.mark.parametrize(
-        "text,search,should_match",
+        "text,search",
         [
-            ("Blåbærsyltetøy", "blåbærsyltetøy", True),
-            ("İstanbul", "istanbul", True),  # May vary by locale
-            ("Москва", "москва", True),
+            ("Blåbærsyltetøy", "blåbærsyltetøy"),
+            ("İstanbul", "istanbul"),
+            ("Москва", "москва"),
         ],
     )
-    def test_unicode_collation_case_insensitive(
-        self, text: str, search: str, should_match: bool
-    ) -> None:
-        """Test UNICODE collation if PyICU is available."""
+    def test_unicode_collation_case_insensitive(self, text: str, search: str) -> None:
+        """Test UNICODE collation with == operator if PyICU is available."""
         try:
             import icu  # noqa: F401
 
@@ -441,10 +439,8 @@ class TestPyICUCollations:
                 "SUMMARY", search, operator="==", collation=Collation.UNICODE
             )
             result = searcher.check_component(cal)
-            if should_match:
-                assert result
-            else:
-                assert not result
+            # With UNICODE collation, case-insensitive matching should work
+            assert result, f"Expected {text!r} to match {search!r} with UNICODE collation"
         except ImportError:
             pytest.skip("PyICU not installed")
 

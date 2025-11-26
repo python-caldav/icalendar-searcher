@@ -324,10 +324,17 @@ class FilterMixin:
                     comp_str = str(comp_value)
                     filter_str = str(filter_value)
 
-                    # For case-insensitive exact match, compare lowercased versions
+                    # Use collation-specific comparison
                     if collation == Collation.CASE_INSENSITIVE:
                         return comp_str.lower() == filter_str.lower()
-                    # For other collations, fall through to default comparison
+                    elif collation in (Collation.UNICODE, Collation.LOCALE):
+                        # For UNICODE/LOCALE collations, use sort keys for comparison
+                        # Two strings are equal if they have the same sort key
+                        from .collation import get_sort_key_function
+
+                        sort_key_fn = get_sort_key_function(collation, locale)
+                        return sort_key_fn(comp_str) == sort_key_fn(filter_str)
+                    # For BINARY collation, fall through to default comparison
 
                 return False
             else:
