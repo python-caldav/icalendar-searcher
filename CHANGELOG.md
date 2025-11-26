@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.1] - 2025-11-26
+
+Some wheel files etc that shouldn't be in the repository has accidentally been added.  Either I've done some silly mistake while sleeping, or perhaps it was a mistake giving the AI access to my computer.
+
+## [0.3.0] - 2025-11-26
+
+Categories are a mess.  I've tried to make a predictable behaviour by making a distinction between `categories` (handling the property filter value as a list that should match or be a subset of the event category set)  and `category` (handling the property filter value as a string that should match towards at least one of the categories in the event).
 
 ### Added
 - **"category" (singular) property filter**: New virtual property for substring matching within category names
