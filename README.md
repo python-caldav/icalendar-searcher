@@ -45,7 +45,7 @@ searcher.add_property_filter("SUMMARY", "meeting", case_sensitive=False)
 searcher.add_property_filter("SUMMARY", "Meeting")
 ```
 
-Case-insensitivity is not straight-forward.  It may cause non-deterministic sort results, and there may be problems with unicode characters - i.e., according to the CalDAV standard, case-insensitivity should only apply to ASCII-characters - causing mismatches between naïve and NAÏVE, cliché and CLICHÉ, smörgåsbord and SMÖRGÅSBORD, not to forget millions of words in non-English languages, complete non-latin scripts, etc.  While this library handles Unicode well, the CalDAV library will by default ask the server to do the search.
+Case-insensitivity is not straight-forward.  It may cause non-deterministic sort results, and there may be problems with unicode characters - i.e., according to the CalDAV standard, case-insensitivity should only apply to ASCII-characters - causing mismatches between naïve and NAÏVE, cliché and CLICHÉ, smörgåsbord and SMÖRGÅSBORD, not to forget millions of words in non-English languages, complete non-latin scripts, etc.  By default this library in itself handles Unicode relatively well - but for CalDAV searches, one may experience that case-insensitivity only applies to ASCII letters.
 
 ### Category Filtering
 

@@ -173,8 +173,9 @@ class FilterMixin:
             comp_value = component.get(comp_key)
 
             # Get collation settings for this property
-            collation = self._property_collation.get(key, Collation.BINARY)
+            collation = self._property_collation.get(key, Collation.SIMPLE)
             locale = self._property_locale.get(key)
+            case_sensitive = self._property_case_sensitive.get(key, True)
 
             ## "categories" (plural) needs special preprocessing - split on commas
             if key == "categories" and comp_value is not None and filter_value is not None:
@@ -218,7 +219,7 @@ class FilterMixin:
                         comp_categories = set([str(x) for x in comp_value.cats])
                         filter_str = str(filter_value)
                         # Check if filter_str is a substring of any category
-                        collation_fn = get_collation_function(collation, locale)
+                        collation_fn = get_collation_function(collation, case_sensitive, locale)
                         for cat in comp_categories:
                             if collation_fn(filter_str, cat):
                                 return True
@@ -228,7 +229,7 @@ class FilterMixin:
                     # filter_value can be a string (single category) or set (multiple categories)
                     if isinstance(filter_value, str):
                         # Single category: check if it's in component categories
-                        if collation == Collation.CASE_INSENSITIVE:
+                        if not case_sensitive:
                             return any(filter_value.lower() == cv.lower() for cv in comp_value)
                         else:
                             return filter_value in comp_value
@@ -238,7 +239,7 @@ class FilterMixin:
                             f"Expected set but got {type(filter_value)}"
                         )
                         for fv in filter_value:
-                            if collation == Collation.CASE_INSENSITIVE:
+                            if not case_sensitive:
                                 if not any(fv.lower() == cv.lower() for cv in comp_value):
                                     return False
                             else:
@@ -251,7 +252,7 @@ class FilterMixin:
                 filter_str = str(filter_value)
 
                 # Use collation function for text matching
-                collation_fn = get_collation_function(collation, locale)
+                collation_fn = get_collation_function(collation, case_sensitive, locale)
                 if not collation_fn(filter_str, comp_str):
                     return False
             elif operator == "==":
@@ -266,7 +267,7 @@ class FilterMixin:
                         filter_str = str(filter_value)
                         # Check if filter_str exactly matches any category
                         for cat in comp_categories:
-                            if collation == Collation.CASE_INSENSITIVE:
+                            if not case_sensitive:
                                 if filter_str.lower() == cat.lower():
                                     return True
                             else:
@@ -283,7 +284,7 @@ class FilterMixin:
                         # Single category with "==" operator: component must have exactly that one category
                         if len(comp_value) != 1:
                             return False
-                        if collation == Collation.CASE_INSENSITIVE:
+                        if not case_sensitive:
                             return filter_value.lower() == list(comp_value)[0].lower()
                         else:
                             return filter_value in comp_value
@@ -298,7 +299,7 @@ class FilterMixin:
                         for fv in filter_value:
                             found = False
                             for cv in comp_value:
-                                if collation == Collation.CASE_INSENSITIVE:
+                                if not case_sensitive:
                                     if fv.lower() == cv.lower():
                                         found = True
                                         break
@@ -325,16 +326,18 @@ class FilterMixin:
                     filter_str = str(filter_value)
 
                     # Use collation-specific comparison
-                    if collation == Collation.CASE_INSENSITIVE:
-                        return comp_str.lower() == filter_str.lower()
+                    if collation == Collation.SIMPLE:
+                        if case_sensitive:
+                            return comp_str == filter_str
+                        else:
+                            return comp_str.lower() == filter_str.lower()
                     elif collation in (Collation.UNICODE, Collation.LOCALE):
                         # For UNICODE/LOCALE collations, use sort keys for comparison
                         # Two strings are equal if they have the same sort key
                         from .collation import get_sort_key_function
 
-                        sort_key_fn = get_sort_key_function(collation, locale)
+                        sort_key_fn = get_sort_key_function(collation, case_sensitive, locale)
                         return sort_key_fn(comp_str) == sort_key_fn(filter_str)
-                    # For BINARY collation, fall through to default comparison
 
                 return False
             else:

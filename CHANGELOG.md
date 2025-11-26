@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-11-26
+
+### Changed
+- **BREAKING: Collation system redesigned**: Simplified collation architecture to use three collation strategies (SIMPLE, UNICODE, LOCALE), each supporting a `case_sensitive` parameter
+  - Removed `Collation.BINARY` - use `Collation.SIMPLE` with `case_sensitive=True` instead
+  - Removed `Collation.CASE_INSENSITIVE` - use `Collation.SIMPLE` with `case_sensitive=False` instead
+  - All collation strategies (SIMPLE, UNICODE, LOCALE) now accept `case_sensitive` boolean parameter
+  - UNICODE and LOCALE collations can now be case-sensitive or case-insensitive
+  - PyICU collator strength is configured based on `case_sensitive` parameter (TERTIARY for case-sensitive, SECONDARY for case-insensitive)
+
+### Migration Guide
+- Replace `collation=Collation.BINARY` with `collation=Collation.SIMPLE, case_sensitive=True`
+- Replace `collation=Collation.CASE_INSENSITIVE` with `collation=Collation.SIMPLE, case_sensitive=False`
+- UNICODE/LOCALE collations now require explicit `case_sensitive` parameter if you want case-sensitive behavior
+
 ## [0.4.1] - 2025-11-26
 
 ### Added

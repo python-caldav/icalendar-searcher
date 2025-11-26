@@ -126,10 +126,12 @@ class Searcher(FilterMixin):
     _sort_keys: list = field(default_factory=list)
     _sort_collation: dict = field(default_factory=dict)
     _sort_locale: dict = field(default_factory=dict)
+    _sort_case_sensitive: dict = field(default_factory=dict)
     _property_filters: dict = field(default_factory=dict)
     _property_operator: dict = field(default_factory=dict)
     _property_collation: dict = field(default_factory=dict)
     _property_locale: dict = field(default_factory=dict)
+    _property_case_sensitive: dict = field(default_factory=dict)
 
     def add_property_filter(
         self,
@@ -240,14 +242,12 @@ class Searcher(FilterMixin):
             # Power user specified explicit collation
             self._property_collation[key] = collation
             self._property_locale[key] = locale
-        elif not case_sensitive:
-            # Simple API: case_sensitive=False
-            self._property_collation[key] = Collation.CASE_INSENSITIVE
-            self._property_locale[key] = None
+            self._property_case_sensitive[key] = case_sensitive
         else:
-            # Default: binary (case-sensitive)
-            self._property_collation[key] = Collation.BINARY
+            # Simple API: use SIMPLE collation with case_sensitive parameter
+            self._property_collation[key] = Collation.SIMPLE
             self._property_locale[key] = None
+            self._property_case_sensitive[key] = case_sensitive
 
     def add_sort_key(
         self,
@@ -296,14 +296,12 @@ class Searcher(FilterMixin):
             # Power user specified explicit collation
             self._sort_collation[key] = collation
             self._sort_locale[key] = locale
-        elif not case_sensitive:
-            # Simple API: case_sensitive=False
-            self._sort_collation[key] = Collation.CASE_INSENSITIVE
-            self._sort_locale[key] = None
+            self._sort_case_sensitive[key] = case_sensitive
         else:
-            # Default: binary (case-sensitive)
-            self._sort_collation[key] = Collation.BINARY
+            # Simple API
+            self._sort_collation[key] = Collation.SIMPLE
             self._sort_locale[key] = None
+            self._sort_case_sensitive[key] = case_sensitive
 
     def check_component(
         self,
@@ -541,7 +539,8 @@ class Searcher(FilterMixin):
             if is_text_property and isinstance(val, str):
                 collation = self._sort_collation[sort_key]
                 locale = self._sort_locale.get(sort_key)
-                sort_key_fn = get_sort_key_function(collation, locale)
+                case_sensitive = self._sort_case_sensitive.get(sort_key, True)
+                sort_key_fn = get_sort_key_function(collation, case_sensitive, locale)
                 val = sort_key_fn(val)
 
             if reverse:

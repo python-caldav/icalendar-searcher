@@ -36,18 +36,27 @@ class Collation(str, Enum):
                                     locale="de_DE")
     """
 
-    BINARY = "binary"
-    """Exact byte-for-byte comparison (case-sensitive)."""
+    SIMPLE = "simple"
+    """Simple Python-based collation (no PyICU required).
 
-    CASE_INSENSITIVE = "case_insensitive"
-    """Case-insensitive comparison using Python's str.lower()."""
+    - case_sensitive=True: Byte-for-byte comparison
+    - case_sensitive=False: Python's str.lower() comparison
+    """
 
     UNICODE = "unicode"
     """Unicode Collation Algorithm (UCA) root collation.
+
+    - case_sensitive=True: ICU TERTIARY strength (distinguishes case)
+    - case_sensitive=False: ICU SECONDARY strength (ignores case)
+
     Requires PyICU to be installed."""
 
     LOCALE = "locale"
     """Locale-aware collation using CLDR rules.
+
+    - case_sensitive=True: ICU TERTIARY strength (distinguishes case)
+    - case_sensitive=False: ICU SECONDARY strength (ignores case)
+
     Requires PyICU to be installed and locale parameter."""
 
 
@@ -58,13 +67,15 @@ class CollationError(Exception):
 
 
 def get_collation_function(
-    collation: Collation = Collation.BINARY,
+    collation: Collation = Collation.SIMPLE,
+    case_sensitive: bool = True,
     locale: str | None = None,
 ) -> Callable[[str, str], bool]:
     """Get a collation function for substring matching.
 
     Args:
         collation: The collation strategy to use
+        case_sensitive: Whether comparison should be case-sensitive
         locale: Locale string (e.g., "de_DE", "en_US") for LOCALE collation
 
     Returns:
@@ -76,15 +87,15 @@ def get_collation_function(
                        invalid parameters are provided.
 
     Examples:
-        >>> match_fn = get_collation_function(Collation.CASE_INSENSITIVE)
+        >>> match_fn = get_collation_function(Collation.SIMPLE, case_sensitive=False)
         >>> match_fn("test", "This is a TEST")
         True
     """
-    if collation == Collation.BINARY:
-        return _binary_contains
-
-    elif collation == Collation.CASE_INSENSITIVE:
-        return _case_insensitive_contains
+    if collation == Collation.SIMPLE:
+        if case_sensitive:
+            return _binary_contains
+        else:
+            return _case_insensitive_contains
 
     elif collation in (Collation.UNICODE, Collation.LOCALE):
         if not HAS_PYICU:
@@ -96,23 +107,25 @@ def get_collation_function(
         if collation == Collation.LOCALE:
             if not locale:
                 raise CollationError("LOCALE collation requires a locale parameter")
-            return _get_icu_contains(locale)
+            return _get_icu_contains(locale, case_sensitive)
         else:
             # UNICODE collation uses root locale
-            return _get_icu_contains(None)
+            return _get_icu_contains(None, case_sensitive)
 
     else:
         raise CollationError(f"Unknown collation: {collation}")
 
 
 def get_sort_key_function(
-    collation: Collation = Collation.BINARY,
+    collation: Collation = Collation.SIMPLE,
+    case_sensitive: bool = True,
     locale: str | None = None,
 ) -> Callable[[str], bytes]:
     """Get a collation function for generating sort keys.
 
     Args:
         collation: The collation strategy to use
+        case_sensitive: Whether comparison should be case-sensitive
         locale: Locale string (e.g., "de_DE", "en_US") for LOCALE collation
 
     Returns:
@@ -124,15 +137,15 @@ def get_sort_key_function(
                        invalid parameters are provided.
 
     Examples:
-        >>> sort_key_fn = get_sort_key_function(Collation.CASE_INSENSITIVE)
+        >>> sort_key_fn = get_sort_key_function(Collation.SIMPLE, case_sensitive=False)
         >>> sorted(["Zebra", "apple", "Banana"], key=sort_key_fn)
         ['apple', 'Banana', 'Zebra']
     """
-    if collation == Collation.BINARY:
-        return lambda s: s.encode("utf-8")
-
-    elif collation == Collation.CASE_INSENSITIVE:
-        return lambda s: s.lower().encode("utf-8")
+    if collation == Collation.SIMPLE:
+        if case_sensitive:
+            return lambda s: s.encode("utf-8")
+        else:
+            return lambda s: s.lower().encode("utf-8")
 
     elif collation in (Collation.UNICODE, Collation.LOCALE):
         if not HAS_PYICU:
@@ -144,10 +157,10 @@ def get_sort_key_function(
         if collation == Collation.LOCALE:
             if not locale:
                 raise CollationError("LOCALE collation requires a locale parameter")
-            return _get_icu_sort_key(locale)
+            return _get_icu_sort_key(locale, case_sensitive)
         else:
             # UNICODE collation uses root locale
-            return _get_icu_sort_key(None)
+            return _get_icu_sort_key(None, case_sensitive)
 
     else:
         raise CollationError(f"Unknown collation: {collation}")
@@ -168,43 +181,49 @@ def _case_insensitive_contains(needle: str, haystack: str) -> bool:
     return needle.lower() in haystack.lower()
 
 
-def _get_icu_contains(locale: str | None) -> Callable[[str, str], bool]:
+def _get_icu_contains(locale: str | None, case_sensitive: bool) -> Callable[[str, str], bool]:
     """Get ICU-based substring matcher.
 
     Note: This is a simplified implementation. PyICU doesn't expose ICU's
     StringSearch API which would be needed for proper substring matching with
-    collation. For now, we use case-insensitive matching as an approximation.
+    collation. For now, we use Python's built-in matching.
 
     Future enhancement: Implement proper collation-aware substring matching.
     """
 
     def icu_contains(needle: str, haystack: str) -> bool:
-        """Check if needle is in haystack using case-insensitive matching.
+        """Check if needle is in haystack.
 
         This is a fallback implementation until proper ICU StringSearch support
         is added. It provides reasonable behavior for most use cases.
         """
         # TODO: Use ICU StringSearch for proper collation-aware substring matching
-        # For now, fall back to case-insensitive as a reasonable approximation
-        return needle.lower() in haystack.lower()
+        # For now, fall back to Python's built-in contains
+        if case_sensitive:
+            return needle in haystack
+        else:
+            return needle.lower() in haystack.lower()
 
     return icu_contains
 
 
-def _get_icu_sort_key(locale: str | None) -> Callable[[str], bytes]:
+def _get_icu_sort_key(locale: str | None, case_sensitive: bool) -> Callable[[str], bytes]:
     """Get ICU-based sort key function.
 
     Creates a collator instance and returns a function that generates sort keys.
-    The collator is configured for case-insensitive comparison (SECONDARY strength).
+    The collator strength is configured based on case_sensitive parameter.
     """
     icu_locale = ICULocale(locale) if locale else ICULocale.getRoot()
     collator = ICUCollator.createInstance(icu_locale)
 
-    # Set strength to SECONDARY for case-insensitive comparison
+    # Set strength based on case sensitivity:
     # PRIMARY = base character differences only
     # SECONDARY = base + accent differences (case-insensitive)
-    # TERTIARY = base + accent + case differences (default, case-sensitive)
-    collator.setStrength(ICUCollator.SECONDARY)
+    # TERTIARY = base + accent + case differences (case-sensitive, default)
+    if case_sensitive:
+        collator.setStrength(ICUCollator.TERTIARY)
+    else:
+        collator.setStrength(ICUCollator.SECONDARY)
 
     def icu_sort_key(s: str) -> bytes:
         """Generate ICU collation sort key."""

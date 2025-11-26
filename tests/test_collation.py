@@ -133,53 +133,53 @@ def test_case_insensitive_categories() -> None:
 
 
 def test_collation_power_user_api_binary() -> None:
-    """Power users can explicitly specify BINARY collation."""
+    """Power users can explicitly specify SIMPLE collation with case_sensitive=True."""
     event = Event()
     event.add("uid", "123")
     event.add("summary", "Meeting")
 
     searcher = Searcher(event=True)
     searcher.add_property_filter(
-        "SUMMARY", "meeting", operator="contains", collation=Collation.BINARY
+        "SUMMARY", "meeting", operator="contains", collation=Collation.SIMPLE, case_sensitive=True
     )
 
     result = searcher.check_component(event)
-    assert not result, "BINARY collation should be case-sensitive"
+    assert not result, "SIMPLE collation with case_sensitive=True should be case-sensitive"
 
 
 def test_collation_power_user_api_case_insensitive() -> None:
-    """Power users can explicitly specify CASE_INSENSITIVE collation."""
+    """Power users can explicitly specify SIMPLE collation with case_sensitive=False."""
     event = Event()
     event.add("uid", "123")
     event.add("summary", "Meeting")
 
     searcher = Searcher(event=True)
     searcher.add_property_filter(
-        "SUMMARY", "meeting", operator="contains", collation=Collation.CASE_INSENSITIVE
+        "SUMMARY", "meeting", operator="contains", collation=Collation.SIMPLE, case_sensitive=False
     )
 
     result = searcher.check_component(event)
-    assert result, "CASE_INSENSITIVE collation should match regardless of case"
+    assert result, "SIMPLE collation with case_sensitive=False should match regardless of case"
 
 
 def test_collation_overrides_case_sensitive() -> None:
-    """Explicit collation parameter overrides case_sensitive parameter."""
+    """case_sensitive parameter works with explicit collation."""
     event = Event()
     event.add("uid", "123")
     event.add("summary", "Meeting")
 
     searcher = Searcher(event=True)
-    # collation=BINARY should override case_sensitive=False
+    # SIMPLE collation with case_sensitive=True should be case-sensitive
     searcher.add_property_filter(
         "SUMMARY",
         "meeting",
         operator="contains",
-        case_sensitive=False,
-        collation=Collation.BINARY,
+        case_sensitive=True,
+        collation=Collation.SIMPLE,
     )
 
     result = searcher.check_component(event)
-    assert not result, "Explicit collation should override case_sensitive parameter"
+    assert not result, "SIMPLE collation with case_sensitive=True should be case-sensitive"
 
 
 def test_case_insensitive_sorting_simple_api() -> None:

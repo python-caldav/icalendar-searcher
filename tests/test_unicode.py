@@ -6,8 +6,7 @@ This module tests filtering and sorting with:
 - Cyrillic characters (Б, Г, Д, etc.)
 
 Tests cover all collation strategies:
-- BINARY (byte-by-byte comparison)
-- CASE_INSENSITIVE (Python's str.lower())
+- SIMPLE (Python-based comparison, with case_sensitive parameter)
 - UNICODE (requires PyICU)
 - LOCALE (requires PyICU)
 """
@@ -40,7 +39,11 @@ class TestNorwegianScandinavianCharacters:
         cal = make_event("Blåbærsyltetøy")
         searcher = Searcher()
         searcher.add_property_filter(
-            "SUMMARY", "Blåbærsyltetøy", operator="==", collation=Collation.BINARY
+            "SUMMARY",
+            "Blåbærsyltetøy",
+            operator="==",
+            collation=Collation.SIMPLE,
+            case_sensitive=True,
         )
         assert searcher.check_component(cal)
 
@@ -49,7 +52,11 @@ class TestNorwegianScandinavianCharacters:
         cal = make_event("Blåbærsyltetøy")
         searcher = Searcher()
         searcher.add_property_filter(
-            "SUMMARY", "BLÅBÆRSYLTETØY", operator="==", collation=Collation.BINARY
+            "SUMMARY",
+            "BLÅBÆRSYLTETØY",
+            operator="==",
+            collation=Collation.SIMPLE,
+            case_sensitive=True,
         )
         assert not searcher.check_component(cal)
 
@@ -95,7 +102,7 @@ class TestNorwegianScandinavianCharacters:
         sorted_vals = sorted(vals, key=lambda x: x[0])
         sorted_summaries = [cal.walk("VEVENT")[0]["SUMMARY"] for _, cal in sorted_vals]
 
-        # With CASE_INSENSITIVE (Python's lower()), order may not be linguistically correct
+        # With SIMPLE case_sensitive=False (Python's lower()), order may not be linguistically correct
         # but should be consistent
         assert len(sorted_summaries) == 5
         assert "Appelsin" in sorted_summaries
@@ -275,16 +282,16 @@ class TestCollationDifferences:
         cal3 = make_event("Cherry", "3")
         cal4 = make_event("date", "4")
 
-        # BINARY collation (case-sensitive): uppercase comes before lowercase
+        # SIMPLE collation (case-sensitive): uppercase comes before lowercase
         searcher_binary = Searcher()
-        searcher_binary.add_sort_key("SUMMARY", collation=Collation.BINARY)
+        searcher_binary.add_sort_key("SUMMARY", collation=Collation.SIMPLE, case_sensitive=True)
         vals_binary = [
             (searcher_binary.sorting_value(cal), cal) for cal in [cal1, cal2, cal3, cal4]
         ]
         sorted_binary = sorted(vals_binary, key=lambda x: x[0])
         summaries_binary = [cal.walk("VEVENT")[0]["SUMMARY"] for _, cal in sorted_binary]
 
-        # CASE_INSENSITIVE collation: ignores case, alphabetical order
+        # SIMPLE collation (case-insensitive): ignores case, alphabetical order
         searcher_ci = Searcher()
         searcher_ci.add_sort_key("SUMMARY", case_sensitive=False)
         vals_ci = [(searcher_ci.sorting_value(cal), cal) for cal in [cal1, cal2, cal3, cal4]]
@@ -306,7 +313,7 @@ class TestCollationDifferences:
         cal3 = make_event("Øl", "3")  # Should come after Æ in Norwegian
         cal4 = make_event("Åpen", "4")  # Should come after Ø in Norwegian
 
-        # With BINARY or CASE_INSENSITIVE (Python's lower()), order is by Unicode codepoint
+        # With SIMPLE (Python's lower()), order is by Unicode codepoint
         searcher_ci = Searcher()
         searcher_ci.add_sort_key("SUMMARY", case_sensitive=False)
         vals_ci = [(searcher_ci.sorting_value(cal), cal) for cal in [cal1, cal2, cal3, cal4]]
@@ -329,9 +336,9 @@ class TestCollationDifferences:
         cal3 = make_event("coté", "3")  # acute
         cal4 = make_event("côté", "4")  # both
 
-        # BINARY collation
+        # SIMPLE collation (case-sensitive)
         searcher_binary = Searcher()
-        searcher_binary.add_sort_key("SUMMARY", collation=Collation.BINARY)
+        searcher_binary.add_sort_key("SUMMARY", collation=Collation.SIMPLE, case_sensitive=True)
         vals_binary = [
             (searcher_binary.sorting_value(cal), cal) for cal in [cal1, cal2, cal3, cal4]
         ]
@@ -379,18 +386,18 @@ class TestMixedScriptsAndCollations:
         cal_lower = make_event("blåbær")
         cal_upper = make_event("BLÅBÆR")
 
-        # BINARY - case-sensitive
+        # SIMPLE - case-sensitive
         searcher_binary = Searcher()
         searcher_binary.add_property_filter(
-            "SUMMARY", "blåbær", operator="==", collation=Collation.BINARY
+            "SUMMARY", "blåbær", operator="==", collation=Collation.SIMPLE, case_sensitive=True
         )
         assert searcher_binary.check_component(cal_lower)
         assert not searcher_binary.check_component(cal_upper)
 
-        # CASE_INSENSITIVE - should match both
+        # SIMPLE case-insensitive - should match both
         searcher_ci = Searcher()
         searcher_ci.add_property_filter(
-            "SUMMARY", "blåbær", operator="==", collation=Collation.CASE_INSENSITIVE
+            "SUMMARY", "blåbær", operator="==", collation=Collation.SIMPLE, case_sensitive=False
         )
         assert searcher_ci.check_component(cal_lower)
         assert searcher_ci.check_component(cal_upper)
