@@ -195,9 +195,16 @@ def _get_icu_sort_key(locale: str | None) -> Callable[[str], bytes]:
     """Get ICU-based sort key function.
 
     Creates a collator instance and returns a function that generates sort keys.
+    The collator is configured for case-insensitive comparison (SECONDARY strength).
     """
     icu_locale = ICULocale(locale) if locale else ICULocale.getRoot()
     collator = ICUCollator.createInstance(icu_locale)
+
+    # Set strength to SECONDARY for case-insensitive comparison
+    # PRIMARY = base character differences only
+    # SECONDARY = base + accent differences (case-insensitive)
+    # TERTIARY = base + accent + case differences (default, case-sensitive)
+    collator.setStrength(ICUCollator.SECONDARY)
 
     def icu_sort_key(s: str) -> bytes:
         """Generate ICU collation sort key."""
