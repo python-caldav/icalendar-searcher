@@ -473,14 +473,22 @@ class Searcher(FilterMixin):
     def sort(
         self, components: list[Calendar | CalendarObjectResource]
     ) -> list[Calendar | CalendarObjectResource]:
-        """
-        Sorts the components given according to the sort
-        keys.
+        """Sort calendar objects according to configured sort keys.
 
-        This method will not modify the components parameter.  The return
-        value is a new list, and if needed it will be containing new objects.
+        This method does not modify the input list. It returns a new sorted list.
+
+        :param components: List of Calendar or CalendarObjectResource objects to sort
+        :return: New sorted list
+
+        Examples:
+            searcher = Searcher()
+            searcher.add_sort_key("DTSTART")
+            sorted_events = searcher.sort(events)  # Returns new sorted list
         """
-        raise NotImplementedError()
+        if self._sort_keys:
+            return sorted(components, key=self.sorting_value)
+        else:
+            return components.copy()
 
     def sorting_value(self, component: Calendar | CalendarObjectResource) -> tuple:
         """
