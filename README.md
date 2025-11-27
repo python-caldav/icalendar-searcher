@@ -29,8 +29,16 @@ searcher = Searcher(
 searcher.add_property_filter("SUMMARY", "meeting", operator="contains")
 searcher.add_property_filter("LOCATION", "Office", operator="contains", case_sensitive=False)
 
-# Check if a component matches
+# Check if a single component matches
 result = searcher.check_component(calendar)
+
+# Filter a list of components
+calendars = [cal1, cal2, cal3]
+matching = searcher.filter(calendars)
+
+# Sort components
+searcher.add_sort_key("DTSTART")
+sorted_calendars = searcher.sort(calendars)
 ```
 
 ### Case-Sensitive vs Case-Insensitive Filtering
@@ -100,7 +108,7 @@ searcher.add_sort_key("SUMMARY", collation=Collation.LOCALE, locale="nb_NO")
 
 ## Status as of v0.6
 
-This library still has some stubbed implementations: in particular `searcher.filter()`.  Since the logic has been implemented, those should be really straight-forward to implement, it's just a matter of deciding the acceptable input and output parameter types.
+The core functionality of the library is now implemented, including `searcher.filter()`, `searcher.sort()`, and `searcher.sort_calendar()`.
 
 Only operators supported so far is ==, contains and undef.  Other operators like !=/<>, <, <=, ~, etc has not been implemented.
 

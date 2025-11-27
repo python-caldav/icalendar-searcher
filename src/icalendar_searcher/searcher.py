@@ -459,16 +459,102 @@ class Searcher(FilterMixin):
                 return None
 
     def filter(
-        self, components: list[Calendar | CalendarObjectResource]
-    ) -> list[Calendar | CalendarObjectResource]:
-        """
-        Filters the components given according to the search
-        criterias, and possibly expanding recurrences.
+        self, components: list[Calendar | Component], split_expanded: bool = False
+    ) -> list[Calendar | Component]:
+        """Filter components according to the search criteria, optionally expanding recurrences.
 
-        This method will not modify the components parameter.  The return
-        value is a new list, and if needed it will be containing new objects.
+        This method does not modify the input list. It returns a new list with
+        filtered components.
+
+        :param components: List of Calendar or Component objects to filter
+        :param split_expanded: If True and recurrences are expanded, return each
+            recurrence as a separate Calendar object. If False, all matching
+            recurrences from a single input will be returned in one Calendar.
+        :return: New list containing only components that match the filter criteria
+
+        Examples:
+            searcher = Searcher(event=True, start=datetime(2025, 1, 1))
+            searcher.add_property_filter("SUMMARY", "meeting", operator="contains")
+            filtered = searcher.filter(calendars)  # Returns matching calendars
+
+            # With split_expanded=True, each recurrence becomes a separate Calendar
+            searcher.expand = True
+            split_results = searcher.filter(calendars, split_expanded=True)
         """
-        raise NotImplementedError()
+        results: list[Calendar | Component] = []
+
+        for component in components:
+            # check_component returns an iterable of matching components (possibly expanded)
+            matched = self.check_component(component)
+
+            # Convert to list to check if we got any results
+            if matched:
+                matched_list = list(matched)
+                if not matched_list:
+                    continue
+
+                if split_expanded and len(matched_list) > 1:
+                    # Split expanded recurrences into separate Calendar objects
+                    # Each recurrence becomes its own Calendar
+                    for comp in matched_list:
+                        if isinstance(comp, Timezone):
+                            continue
+
+                        # Create new Calendar for this recurrence
+                        new_cal = Calendar()
+
+                        # If original was a Calendar, copy its properties
+                        if isinstance(component, Calendar):
+                            for key, value in component.items():
+                                new_cal[key] = value
+
+                            # Preserve timezone components
+                            timezones = [
+                                tz for tz in component.subcomponents if isinstance(tz, Timezone)
+                            ]
+                            for tz in timezones:
+                                from copy import deepcopy
+
+                                new_cal.add_component(deepcopy(tz))
+
+                        # Add the matched component
+                        from copy import deepcopy
+
+                        new_cal.add_component(deepcopy(comp))
+                        results.append(new_cal)
+                else:
+                    # Return as-is, or create a Calendar with all matched components
+                    if isinstance(component, Calendar):
+                        # Create new Calendar with matched components
+                        new_cal = Calendar()
+                        for key, value in component.items():
+                            new_cal[key] = value
+
+                        # Preserve timezone components
+                        timezones = [
+                            tz for tz in component.subcomponents if isinstance(tz, Timezone)
+                        ]
+                        for tz in timezones:
+                            from copy import deepcopy
+
+                            new_cal.add_component(deepcopy(tz))
+
+                        # Add all matched components
+                        for comp in matched_list:
+                            if not isinstance(comp, Timezone):
+                                from copy import deepcopy
+
+                                new_cal.add_component(deepcopy(comp))
+
+                        results.append(new_cal)
+                    else:
+                        # Component was passed directly, return matched components
+                        for comp in matched_list:
+                            from copy import deepcopy
+
+                            results.append(deepcopy(comp))
+
+        return results
 
     def sort(
         self, components: list[Component | CalendarObjectResource]
