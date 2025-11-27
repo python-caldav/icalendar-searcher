@@ -471,8 +471,8 @@ class Searcher(FilterMixin):
         raise NotImplementedError()
 
     def sort(
-        self, components: list[Calendar | CalendarObjectResource]
-    ) -> list[Calendar | CalendarObjectResource]:
+        self, components: list[Component | CalendarObjectResource]
+    ) -> list[Component | CalendarObjectResource]:
         """Sort calendar objects according to configured sort keys.
 
         This method does not modify the input list. It returns a new sorted list.
@@ -490,9 +490,62 @@ class Searcher(FilterMixin):
         else:
             return components.copy()
 
-    def sorting_value(self, component: Calendar | CalendarObjectResource) -> tuple:
+    def sort_calendar(self, calendar: Calendar) -> Calendar:
+        """Sort subcomponents within a Calendar object according to configured sort keys.
+
+        This method does not modify the input Calendar. It returns a new Calendar
+        with sorted subcomponents (excluding VTIMEZONE components).
+
+        :param calendar: Calendar object containing multiple subcomponents to sort
+        :return: New Calendar object with sorted subcomponents
+
+        Examples:
+            searcher = Searcher()
+            searcher.add_sort_key("DTSTART")
+            sorted_cal = searcher.sort_calendar(calendar)  # Returns new Calendar with sorted events
         """
-        Returns a sortable value from the component, based on the sort keys
+        if not self._sort_keys:
+            # No sorting needed, return a copy
+            from copy import deepcopy
+
+            return deepcopy(calendar)
+
+        # Separate timezone components from other components
+        from icalendar import Timezone
+
+        timezones = [comp for comp in calendar.subcomponents if isinstance(comp, Timezone)]
+        other_components = [
+            comp for comp in calendar.subcomponents if not isinstance(comp, Timezone)
+        ]
+
+        # Sort the non-timezone components
+        sorted_components = sorted(other_components, key=self.sorting_value)
+
+        # Create new calendar with sorted components
+        from copy import deepcopy
+
+        new_calendar = Calendar()
+
+        # Copy calendar-level properties
+        for key, value in calendar.items():
+            new_calendar[key] = value
+
+        # Add timezone components first
+        for tz in timezones:
+            new_calendar.add_component(deepcopy(tz))
+
+        # Add sorted components
+        for comp in sorted_components:
+            new_calendar.add_component(deepcopy(comp))
+
+        return new_calendar
+
+    def sorting_value(self, component: Component | CalendarObjectResource) -> tuple:
+        """Returns a sortable value from the component, based on the sort keys
+
+        The component may be an icalendar.Calendar, an
+        icalendar.Component (i.e. icalendar.Event) or an
+        caldav.CalendarObjectResource (i.e. caldav.Event).
         """
         ret = []
         ## TODO: this logic has been moved more or less as-is from the
@@ -500,9 +553,11 @@ class Searcher(FilterMixin):
 
         ## TODO: we disregard any complexity wrg of recurring events
         component = self._unwrap(component)
-
-        not_tz_components = (x for x in component.subcomponents if not isinstance(x, Timezone))
-        comp = next(not_tz_components)
+        if isinstance(component, Calendar):
+            not_tz_components = (x for x in component.subcomponents if not isinstance(x, Timezone))
+            comp = next(not_tz_components)
+        else:
+            comp = component
 
         defaults = {
             ## TODO: all possible non-string sort attributes needs to be listed here, otherwise we will get type errors when comparing objects with the property defined vs undefined (or maybe we should make an "undefined" object that always will compare below any other type?  Perhaps there exists such an object already?)

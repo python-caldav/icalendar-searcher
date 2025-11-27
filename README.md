@@ -98,9 +98,9 @@ searcher.add_sort_key("SUMMARY", collation=Collation.LOCALE, locale="nb_NO")
 * The project depends on the [recurring-ical-events](https://github.com/niccokunzmann/python-recurring-ical-events) library for expanding recurrence sets.
 * The project is used by the [Python CalDAV client library](https://github.com/python-caldav/caldav)
 
-## Status as of v0.3.1
+## Status as of v0.6
 
-This library still has some stubbed implementations: in particular `searcher.filter()` and `searcher.sort`.  Since the logic has been implemented, those should be really straight-forward to implement, it's just a matter of deciding the acceptable input and output parameter types.
+This library still has some stubbed implementations: in particular `searcher.filter()`.  Since the logic has been implemented, those should be really straight-forward to implement, it's just a matter of deciding the acceptable input and output parameter types.
 
 Only operators supported so far is ==, contains and undef.  Other operators like !=/<>, <, <=, ~, etc has not been implemented.
 

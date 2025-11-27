@@ -250,3 +250,153 @@ def test_sort_reversed() -> None:
     assert sorted_events[0]["DTSTART"].dt == datetime(2025, 1, 3)
     assert sorted_events[1]["DTSTART"].dt == datetime(2025, 1, 2)
     assert sorted_events[2]["DTSTART"].dt == datetime(2025, 1, 1)
+
+
+def test_sort_calendar_basic() -> None:
+    """Test sorting subcomponents within a Calendar object."""
+    cal = Calendar()
+    cal.add("prodid", "-//Test//Test//EN")
+    cal.add("version", "2.0")
+
+    event1 = Event()
+    event1.add("uid", "1")
+    event1.add("summary", "Event C")
+    event1.add("dtstart", datetime(2025, 1, 3))
+
+    event2 = Event()
+    event2.add("uid", "2")
+    event2.add("summary", "Event A")
+    event2.add("dtstart", datetime(2025, 1, 1))
+
+    event3 = Event()
+    event3.add("uid", "3")
+    event3.add("summary", "Event B")
+    event3.add("dtstart", datetime(2025, 1, 2))
+
+    cal.add_component(event1)
+    cal.add_component(event2)
+    cal.add_component(event3)
+
+    searcher = Searcher()
+    searcher.add_sort_key("DTSTART")
+    sorted_cal = searcher.sort_calendar(cal)
+
+    # Original calendar should be unchanged
+    original_events = cal.walk("VEVENT")
+    assert len(original_events) == 3
+    assert original_events[0]["DTSTART"].dt == datetime(2025, 1, 3)
+
+    # Sorted calendar should have events in order
+    sorted_events = sorted_cal.walk("VEVENT")
+    assert len(sorted_events) == 3
+    assert sorted_events[0]["DTSTART"].dt == datetime(2025, 1, 1)
+    assert sorted_events[1]["DTSTART"].dt == datetime(2025, 1, 2)
+    assert sorted_events[2]["DTSTART"].dt == datetime(2025, 1, 3)
+
+    # Calendar properties should be preserved
+    assert sorted_cal["PRODID"] == "-//Test//Test//EN"
+    assert sorted_cal["VERSION"] == "2.0"
+
+
+def test_sort_calendar_preserves_timezones() -> None:
+    """Test that sort_calendar preserves VTIMEZONE components."""
+    from icalendar import Timezone
+
+    cal = Calendar()
+    cal.add("prodid", "-//Test//Test//EN")
+    cal.add("version", "2.0")
+
+    # Add timezone
+    tz = Timezone()
+    tz.add("tzid", "America/New_York")
+    cal.add_component(tz)
+
+    # Add events
+    event1 = Event()
+    event1.add("uid", "1")
+    event1.add("summary", "Event B")
+    event1.add("dtstart", datetime(2025, 1, 2))
+
+    event2 = Event()
+    event2.add("uid", "2")
+    event2.add("summary", "Event A")
+    event2.add("dtstart", datetime(2025, 1, 1))
+
+    cal.add_component(event1)
+    cal.add_component(event2)
+
+    searcher = Searcher()
+    searcher.add_sort_key("DTSTART")
+    sorted_cal = searcher.sort_calendar(cal)
+
+    # Check timezone is preserved
+    timezones = sorted_cal.walk("VTIMEZONE")
+    assert len(timezones) == 1
+    assert timezones[0]["TZID"] == "America/New_York"
+
+    # Check events are sorted
+    sorted_events = sorted_cal.walk("VEVENT")
+    assert len(sorted_events) == 2
+    assert sorted_events[0]["DTSTART"].dt == datetime(2025, 1, 1)
+    assert sorted_events[1]["DTSTART"].dt == datetime(2025, 1, 2)
+
+
+def test_sort_calendar_mixed_component_types() -> None:
+    """Test sorting a Calendar with mixed component types (events, todos)."""
+    cal = Calendar()
+    cal.add("prodid", "-//Test//Test//EN")
+    cal.add("version", "2.0")
+
+    event1 = Event()
+    event1.add("uid", "1")
+    event1.add("summary", "Event")
+    event1.add("dtstart", datetime(2025, 1, 3))
+
+    todo1 = Todo()
+    todo1.add("uid", "2")
+    todo1.add("summary", "Task")
+    todo1.add("dtstart", datetime(2025, 1, 1))
+
+    event2 = Event()
+    event2.add("uid", "3")
+    event2.add("summary", "Event")
+    event2.add("dtstart", datetime(2025, 1, 2))
+
+    cal.add_component(event1)
+    cal.add_component(todo1)
+    cal.add_component(event2)
+
+    searcher = Searcher()
+    searcher.add_sort_key("DTSTART")
+    sorted_cal = searcher.sort_calendar(cal)
+
+    # All components should be sorted by DTSTART
+    all_components = [comp for comp in sorted_cal.subcomponents]
+    # Skip timezone if any
+    non_tz = [c for c in all_components if c.name != "VTIMEZONE"]
+
+    assert len(non_tz) == 3
+    assert non_tz[0]["DTSTART"].dt == datetime(2025, 1, 1)  # Todo
+    assert non_tz[1]["DTSTART"].dt == datetime(2025, 1, 2)  # Event
+    assert non_tz[2]["DTSTART"].dt == datetime(2025, 1, 3)  # Event
+
+
+def test_sort_calendar_no_sort_keys() -> None:
+    """Test that sort_calendar returns a copy when no sort keys configured."""
+    cal = Calendar()
+    cal.add("prodid", "-//Test//Test//EN")
+
+    event = Event()
+    event.add("uid", "1")
+    event.add("summary", "Event")
+    cal.add_component(event)
+
+    searcher = Searcher()
+    # No sort keys added
+    result = searcher.sort_calendar(cal)
+
+    # Should be a different object (copy)
+    assert result is not cal
+    # Should have same content
+    assert len(result.subcomponents) == len(cal.subcomponents)
+    assert result["PRODID"] == cal["PRODID"]
