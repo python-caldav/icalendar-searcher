@@ -556,6 +556,60 @@ class Searcher(FilterMixin):
 
         return results
 
+    def filter_calendar(self, calendar: Calendar) -> Calendar:
+        """Filter subcomponents within a Calendar object according to search criteria.
+
+        This method does not modify the input Calendar. It returns a new Calendar
+        containing only the subcomponents that match the filter criteria.
+
+        :param calendar: Calendar object containing multiple subcomponents to filter
+        :return: New Calendar object with only matching subcomponents, or None if no matches
+
+        Examples:
+            searcher = Searcher(event=True, start=datetime(2025, 1, 1))
+            searcher.add_property_filter("SUMMARY", "meeting", operator="contains")
+            filtered_cal = searcher.filter_calendar(calendar)  # Returns Calendar with matching events
+        """
+        from copy import deepcopy
+
+        # Separate timezone components from other components
+        timezones = [comp for comp in calendar.subcomponents if isinstance(comp, Timezone)]
+        other_components = [
+            comp for comp in calendar.subcomponents if not isinstance(comp, Timezone)
+        ]
+
+        # Filter each component
+        matching_components = []
+        for comp in other_components:
+            matched = self.check_component(comp)
+            if matched:
+                matched_list = list(matched)
+                if matched_list:
+                    # Add all matching occurrences (expanded or not)
+                    matching_components.extend(matched_list)
+
+        # If no matches, return None or empty calendar
+        if not matching_components:
+            return None
+
+        # Create new calendar with matching components
+        new_calendar = Calendar()
+
+        # Copy calendar-level properties
+        for key, value in calendar.items():
+            new_calendar[key] = value
+
+        # Add timezone components first
+        for tz in timezones:
+            new_calendar.add_component(deepcopy(tz))
+
+        # Add matching components
+        for comp in matching_components:
+            if not isinstance(comp, Timezone):
+                new_calendar.add_component(deepcopy(comp))
+
+        return new_calendar
+
     def sort(
         self, components: list[Component | CalendarObjectResource]
     ) -> list[Component | CalendarObjectResource]:

@@ -8,6 +8,24 @@ This library should contain logic for searching, filtering and sorting icalendar
 * This may be useful in any kind of software handling collections of calendar content and needing to do filtering or searches on it.
 * This may also be useful by calendar server developers.
 
+## Maturity
+
+I've decided to release 1.0 now as I think it's getting more or less feature-complete (with the exception of advanced operators).  However, the library has not been battle-tested.
+
+`sort` and `check_component` is used by the caldav project.  It has not been used much in the wild yet, but they have been through some QA and is also tested by test-code from the caldav project.
+
+`filter`, `filter_calendar` and `sort_calendar` has not been tested yet, is AI-generated and is only covered by AI-generated test code.  There may be dragons.
+
+## Maturity
+
+I've decided to release 1.0 now as I think it's getting more or less feature-complete (with the exception of advanced operators). The API is considered stable and will follow semantic versioning going forward.
+
+`sort` and `check_component` is used by the caldav project, it has not been used much in the wild yet, but has been through quite some testing.
+
+`filter`, `filter_calendar` and `sort_calendar` has not been tested yet, is AI-generated and is only covered by AI-generated test code.  There may be dragons.
+
+**Not yet implemented**: operators like `!=`, `<>`, `<`, `<=`, `>`, `>=`, `~` (regex), etc.
+
 ## Usage
 
 No proper usage documentation has been written yet, sorry.  There are tons of inline comments and docstrings though.  The AI has contributed with quite some verbose comments in the test code, but little of it has been exposed to any proper QA.
@@ -105,16 +123,6 @@ searcher.add_sort_key("SUMMARY", collation=Collation.LOCALE, locale="nb_NO")
 * The project depends on the [icalendar](https://github.com/collective/icalendar) library, all calendar contents handled by this library is coming in and out as ``icalendar.Component`` or ``icalendar.Calendar``.  However, the library should also support wrapped objects (like instances of the ``caldav.Event`` class).
 * The project depends on the [recurring-ical-events](https://github.com/niccokunzmann/python-recurring-ical-events) library for expanding recurrence sets.
 * The project is used by the [Python CalDAV client library](https://github.com/python-caldav/caldav)
-
-## Status as of v0.6
-
-The core functionality of the library is now implemented, including `searcher.filter()`, `searcher.sort()`, and `searcher.sort_calendar()`.
-
-Only operators supported so far is ==, contains and undef.  Other operators like !=/<>, <, <=, ~, etc has not been implemented.
-
-As for now, the maintainers primary priority is to develop whatever is needed for supporting the next release of the CalDAV library.
-
-According to the SemVer rules, it's OK to still change the API in 0.x-versions, but the current API is likely to be quite stable.  See [CHANGELOG.md](CHANGELOG.md) for version history and breaking changes.
 
 ## History
 

@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2025-11-27
+
+### Added
+- **`filter()` method**: Implemented filtering for lists of Calendar/Component objects
+  - Accepts `list[Calendar | Component]` as input
+  - Optional `split_expanded` parameter for splitting expanded recurrences into separate Calendar objects
+  - Returns new list without modifying input (immutability guarantee)
+  - Preserves Calendar properties and VTIMEZONE components
+  - Applies all configured property filters and component type filters
+  - Handles recurrence expansion when `self.expand` is True
+  - Deep copies all returned objects for safety
+
+- **`sort()` method**: Implemented sorting for lists of components/calendars
+  - Accepts `list[Component | CalendarObjectResource]` as input
+  - Returns new sorted list without modifying input
+  - Uses configured sort keys (via `add_sort_key()`)
+  - Supports multiple sort keys with proper precedence
+  - Supports case-sensitive/case-insensitive sorting
+  - Supports reversed sorting
+  - Handles Calendar, Component, and CalendarObjectResource objects
+
+- **`filter_calendar()` method**: Implemented filtering of subcomponents within a Calendar object
+  - Filters all subcomponents (events/todos/journals) within a single Calendar
+  - Returns new Calendar with only matching subcomponents, or None if no matches
+  - Preserves VTIMEZONE components
+  - Preserves all Calendar-level properties
+  - Handles recurrence expansion when `self.expand` is True
+  - Deep copies to ensure immutability
+
+- **`sort_calendar()` method**: Implemented sorting of subcomponents within a Calendar object
+  - Sorts all subcomponents (events/todos/journals) within a single Calendar
+  - Preserves VTIMEZONE components in their original position
+  - Returns new Calendar without modifying input
+  - Preserves all Calendar-level properties
+  - Deep copies to ensure immutability
+
+- **Comprehensive test suites**:
+  - 15 tests for `filter()` method covering filtering, expansion, splitting, and edge cases
+  - 5 tests for `filter_calendar()` method covering basic filtering, no matches, timezones, expansion, and mixed types
+  - 12 tests for `sort()` and `sort_calendar()` methods covering various sorting scenarios
+
+### Changed
+- **Core functionality now complete**: The library's main methods (`filter()`, `filter_calendar()`, `sort()`, `sort_calendar()`) are now fully implemented and no longer stubs
+- **README updated**: Added usage examples for `filter()` and `sort()` methods, updated status section to reflect completion of core functionality
+
+### Notes
+- This is the first stable 1.0 release
+- The API is considered stable and will follow semantic versioning going forward
+- Breaking changes in future versions will require a major version bump (2.0, 3.0, etc.)
+
 ## [0.5.0] - 2025-11-26
 
 ### Changed

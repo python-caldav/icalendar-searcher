@@ -460,3 +460,170 @@ def test_filter_split_expanded_without_expansion() -> None:
     events = filtered[0].walk("VEVENT")
     # Should have just the master event, not expanded
     assert len(events) == 1
+
+
+def test_filter_calendar_basic() -> None:
+    """Test filtering subcomponents within a Calendar object."""
+    cal = Calendar()
+    cal.add("prodid", "-//Test//Test//EN")
+    cal.add("version", "2.0")
+
+    event1 = Event()
+    event1.add("uid", "1")
+    event1.add("summary", "Team Meeting")
+    event1.add("dtstart", datetime(2025, 1, 1))
+
+    event2 = Event()
+    event2.add("uid", "2")
+    event2.add("summary", "Training Session")
+    event2.add("dtstart", datetime(2025, 1, 2))
+
+    event3 = Event()
+    event3.add("uid", "3")
+    event3.add("summary", "Team Building")
+    event3.add("dtstart", datetime(2025, 1, 3))
+
+    cal.add_component(event1)
+    cal.add_component(event2)
+    cal.add_component(event3)
+
+    searcher = Searcher(event=True)
+    searcher.add_property_filter("SUMMARY", "Team", operator="contains")
+    filtered_cal = searcher.filter_calendar(cal)
+
+    # Original calendar should be unchanged
+    assert len(cal.walk("VEVENT")) == 3
+
+    # Filtered calendar should have only matching events
+    assert filtered_cal is not None
+    events = filtered_cal.walk("VEVENT")
+    assert len(events) == 2
+    summaries = {e["SUMMARY"] for e in events}
+    assert summaries == {"Team Meeting", "Team Building"}
+
+    # Calendar properties should be preserved
+    assert filtered_cal["PRODID"] == "-//Test//Test//EN"
+    assert filtered_cal["VERSION"] == "2.0"
+
+
+def test_filter_calendar_no_matches() -> None:
+    """Test that filter_calendar returns None when no matches."""
+    cal = Calendar()
+    cal.add("prodid", "-//Test//Test//EN")
+
+    event = Event()
+    event.add("uid", "1")
+    event.add("summary", "Meeting")
+    cal.add_component(event)
+
+    searcher = Searcher(event=True)
+    searcher.add_property_filter("SUMMARY", "NoMatch")
+    filtered_cal = searcher.filter_calendar(cal)
+
+    assert filtered_cal is None
+
+
+def test_filter_calendar_preserves_timezones() -> None:
+    """Test that filter_calendar preserves VTIMEZONE components."""
+    from icalendar import Timezone
+
+    cal = Calendar()
+    cal.add("prodid", "-//Test//Test//EN")
+
+    # Add timezone
+    tz = Timezone()
+    tz.add("tzid", "America/New_York")
+    cal.add_component(tz)
+
+    # Add events
+    event1 = Event()
+    event1.add("uid", "1")
+    event1.add("summary", "Keep This")
+    cal.add_component(event1)
+
+    event2 = Event()
+    event2.add("uid", "2")
+    event2.add("summary", "Filter This")
+    cal.add_component(event2)
+
+    searcher = Searcher(event=True)
+    searcher.add_property_filter("SUMMARY", "Keep This")
+    filtered_cal = searcher.filter_calendar(cal)
+
+    assert filtered_cal is not None
+
+    # Check timezone is preserved
+    timezones = filtered_cal.walk("VTIMEZONE")
+    assert len(timezones) == 1
+    assert timezones[0]["TZID"] == "America/New_York"
+
+    # Check correct event included
+    events = filtered_cal.walk("VEVENT")
+    assert len(events) == 1
+    assert events[0]["SUMMARY"] == "Keep This"
+
+
+def test_filter_calendar_with_expansion() -> None:
+    """Test filter_calendar with recurrence expansion."""
+    cal = Calendar()
+    cal.add("prodid", "-//Test//Test//EN")
+
+    # Add recurring event
+    event = Event()
+    event.add("uid", "recurring")
+    event.add("summary", "Weekly Meeting")
+    event.add("dtstart", datetime(2025, 1, 6))
+    event.add("rrule", vRecur(FREQ="WEEKLY", COUNT=3))
+    cal.add_component(event)
+
+    searcher = Searcher(
+        event=True,
+        start=datetime(2025, 1, 1),
+        end=datetime(2025, 1, 31),
+        expand=True,
+    )
+
+    filtered_cal = searcher.filter_calendar(cal)
+
+    assert filtered_cal is not None
+    events = filtered_cal.walk("VEVENT")
+    # Should have 3 expanded occurrences
+    assert len(events) == 3
+
+
+def test_filter_calendar_mixed_component_types() -> None:
+    """Test filter_calendar with mixed event and todo components."""
+    cal = Calendar()
+    cal.add("prodid", "-//Test//Test//EN")
+
+    event = Event()
+    event.add("uid", "1")
+    event.add("summary", "Event")
+    cal.add_component(event)
+
+    todo = Todo()
+    todo.add("uid", "2")
+    todo.add("summary", "Task")
+    cal.add_component(todo)
+
+    # Filter for events only
+    searcher = Searcher(event=True)
+    filtered_cal = searcher.filter_calendar(cal)
+
+    assert filtered_cal is not None
+    events = filtered_cal.walk("VEVENT")
+    todos = filtered_cal.walk("VTODO")
+
+    assert len(events) == 1
+    assert len(todos) == 0
+
+    # Filter for todos only
+    searcher = Searcher(todo=True)
+    filtered_cal = searcher.filter_calendar(cal)
+
+    assert filtered_cal is not None
+    events = filtered_cal.walk("VEVENT")
+    todos = filtered_cal.walk("VTODO")
+
+    assert len(events) == 0
+    assert len(todos) == 1
