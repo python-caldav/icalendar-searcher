@@ -617,6 +617,8 @@ class Searcher(FilterMixin):
 
         This method does not modify the input list. It returns a new sorted list.
 
+        (the idea with this is that the input may be a generator)
+
         :param components: List of Calendar or CalendarObjectResource objects to sort
         :return: New sorted list
 
@@ -722,7 +724,10 @@ class Searcher(FilterMixin):
             ),
         }
         for sort_key, reverse in self._sort_keys:
-            val = comp.get(sort_key, None)
+            if sort_key == "categories":
+                val = comp.categories
+            else:
+                val = comp.get(sort_key, None)
             if val is None:
                 ret.append(defaults.get(sort_key, ""))
                 continue
@@ -733,10 +738,28 @@ class Searcher(FilterMixin):
 
             if hasattr(val, "dt"):
                 val = val.dt
-            elif hasattr(val, "cats"):
-                val = ",".join(val.cats)
             if hasattr(val, "strftime"):
                 val = val.strftime("%F%H%M%S")
+
+            ## TODO: I don't have time to fix test code for this at
+            ## the moment (but the bug in v1.0.0 was caught by cyrus
+            ## test code in caldav library, cyrus splits the
+            ## categories field, and this is allowed according to RFC
+            ## 7986, section 5.6) TODO: we should fix tests not only
+            ## for sorting lists and categories, but also filtering on
+            ## lists and multi-line categories.
+            if isinstance(val, list):
+                ## sorting lists may be difficult.  As I understand
+                ## the standard, the order of the list is not
+                ## significant - the order of the elements may be
+                ## reshuffled, and the icalendar component will
+                ## semantically be equivalent.  To get deterministic
+                ## sorting of semantically equivalent components, I've
+                ## decided to sort the list (TODO: collation support?)
+                val = sorted(val)
+
+                ## TODO: what if the list contains numbers?
+                val = ",".join([str(x) for x in val])
 
             # Apply collation only to text properties (not datetime strings)
             if is_text_property and isinstance(val, str):

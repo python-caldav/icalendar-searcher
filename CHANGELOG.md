@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2025-11-30
+
+### Fixed
+
+Support for RFC7986-style CATEGORIES split over multiple lines.  https://github.com/python-caldav/icalendar-searcher/issues/6
+- The sort method did not handle lists very well.  In particular, RFC 7986 section 5.6 defines that the categories field may be split over multiple lines in the icalendar object, this could cause an exception to be raised.  Now lists are sorted and converted to a comma-separated string prior to sorting.
+- The filter method would also run into problems, it has also been fixed
+
 ## [1.0.0] - 2025-11-27
 
 ### Added
