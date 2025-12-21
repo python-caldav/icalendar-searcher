@@ -26,6 +26,7 @@ readme = "README.md"
 packages = [{include = "icalendar_searcher", from = "src"}]
 
 [tool.poetry.dependencies]
+python = ">=3.9,<4"
 icalendar = ">=6.0"
 recurring-ical-events = ">=3.8.0"
 
@@ -47,7 +48,8 @@ dev = [
     "ruff",
     "pre-commit",
     "pytest (>=8.0.0,<10.0.0)",
-    "PyICU"
+    "PyICU",
+    "deptry (>=0.24.0); python_version >= '3.10'"
 ]
 
 [tool.ruff]
@@ -60,3 +62,6 @@ ignore = ["E501", "ANN401"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["icalendar_searcher"]
+
+[tool.deptry.per_rule_ignores]
+DEP004 = ["icu"]  # PyICU is optional (collation extra), also in dev for testing
