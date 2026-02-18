@@ -211,7 +211,15 @@ class FilterMixin:
                     filter_value = result_set
             if operator == "undef":
                 ## Property should NOT be defined
-                if comp_key in component:
+                if key in ("categories", "category"):
+                    ## icalendar (>=6.x) provides a default empty vCategory object
+                    ## even when CATEGORIES is not explicitly set in the iCalendar data,
+                    ## making `"categories" in component` always True.  Check the
+                    ## already-computed comp_value set instead: if it is non-empty the
+                    ## property is actually present.
+                    if comp_value:
+                        return False
+                elif comp_key in component:
                     return False
             elif operator == "contains":
                 ## Property should contain the filter value (substring match)
