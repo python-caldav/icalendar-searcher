@@ -386,6 +386,14 @@ class Searcher(FilterMixin):
         ## filter logics on all but the
 
         ## 4) if the base element matches, we may need to expand it
+
+        ## When the base element passes property filters (including undef checks),
+        ## expanded occurrences should skip undef checks.  Libraries like
+        ## recurring_ical_events add computed properties (e.g. DTEND for
+        ## all-day events) to individual occurrences even when the master
+        ## event does not have them explicitly set, causing false negatives.
+        skip_undef_for_expanded = False
+
         first = orig_recurrence_set[0]
         if not expand_only and "RRULE" in first and not _ignore_rrule_and_time:
             ## TODO: implement logic above
@@ -393,6 +401,11 @@ class Searcher(FilterMixin):
             if not base_element_match:
                 ## Base element is to be ignored.  recurrence_set is still a list
                 recurrence_set = recurrence_set[1:]  # Remove first element (base), keep exceptions
+            else:
+                ## Base element passed all filters (including undef checks).  Flag
+                ## that expanded occurrences should skip undef checks to avoid
+                ## filtering out occurrences with properties added by expansion.
+                skip_undef_for_expanded = True
 
         ## self.include_completed should default to False if todo is explicity set,
         ## otherwise True
@@ -443,7 +456,11 @@ class Searcher(FilterMixin):
 
             ## Apply property filters
             if self._property_filters or self._property_operator:
-                recurrence_set = (x for x in recurrence_set if self._check_property_filters(x))
+                recurrence_set = (
+                    x
+                    for x in recurrence_set
+                    if self._check_property_filters(x, skip_undef=skip_undef_for_expanded)
+                )
 
             ## Apply alarm filters
             if not _ignore_rrule_and_time and (self.alarm_start or self.alarm_end):

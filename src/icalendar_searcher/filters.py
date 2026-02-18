@@ -161,10 +161,16 @@ class FilterMixin:
     ## DISCLAIMER: partly AI-generated code.  Refactored a bit by human hands
     ## Should be refactored more, there is quite some code duplication here.
     ## Code duplication is bad, IMO.
-    def _check_property_filters(self, component: Component) -> bool:
+    def _check_property_filters(self, component: Component, skip_undef: bool = False) -> bool:
         """Check if a component matches all property filters.
 
         :param component: A single calendar component
+        :param skip_undef: If True, skip ``undef`` operator checks.  Used when
+            filtering expanded recurrence occurrences whose base element has
+            already passed the undef check.  Libraries like
+            ``recurring_ical_events`` may add computed properties (e.g. DTEND)
+            to individual occurrences even when the master event does not have
+            them explicitly, which would otherwise cause false negatives.
         :return: True if the component matches all property filters, False otherwise
         """
         for key, operator in self._property_operator.items():
@@ -210,6 +216,13 @@ class FilterMixin:
                             result_set.add(item_str)
                     filter_value = result_set
             if operator == "undef":
+                if skip_undef:
+                    ## The base (master) element of this recurrence set already
+                    ## passed the undef check.  Expanded occurrences may have
+                    ## this property added as a computed value by
+                    ## recurring_ical_events (e.g. DTEND for all-day events), so
+                    ## we skip the check here to avoid false negatives.
+                    continue
                 ## Property should NOT be defined
                 if key in ("categories", "category"):
                     ## icalendar (>=6.x) provides a default empty vCategory object
