@@ -5,11 +5,10 @@ description = ""
 authors = [
     {name = "Tobias Brox",email = "tobias@redpill-linpro.com"}
 ]
-## caldav still supports 3.9, so we would definitively like
-## to support python 3.9 for a while.  However, the precommit
-## logic I just threw in requires me to officially ditch 3.9-support.
-## I guess the caldav tests will still exercise this library with 3.9.
-requires-python = ">=3.9,<4.0"
+## The recurring-ical-events >=3.8.0 dependency transitively requires
+## click >=8.3.1 (via x-wr-timezone), which only supports Python >=3.10.
+## The caldav library's own CI still exercises this library with Python 3.9.
+requires-python = ">=3.10,<4.0"
 
 [project.urls]
 Repository = "https://github.com/python-caldav/icalendar-searcher"
@@ -26,7 +25,7 @@ readme = "README.md"
 packages = [{include = "icalendar_searcher", from = "src"}]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<4"
+python = ">=3.10,<4"
 icalendar = ">=6.0"
 recurring-ical-events = ">=3.8.0"
 

@@ -14,5 +14,6 @@ jobs:
         args: >-
           --timeout 10
           --max-retries 2
+          --accept 429
           '**/*.md'
           '**/*.rst'
