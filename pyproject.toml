@@ -1,55 +1,45 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
 [project]
 name = "icalendar-searcher"
-version = "0.0.0"
-description = ""
-authors = [
-    {name = "Tobias Brox",email = "tobias@redpill-linpro.com"}
-]
+dynamic = ["version"]
+description = "Search, filter and sort iCalendar components"
+readme = "README.md"
 ## The recurring-ical-events >=3.8.0 dependency transitively requires
-## click >=8.3.1 (via x-wr-timezone), which only supports Python >=3.10.
+## click >=8.3.1 (via x-wr-timezone) which only supports Python >=3.10.
 ## The caldav library's own CI still exercises this library with Python 3.9.
 requires-python = ">=3.10,<4.0"
+license = {text = "AGPL-3.0-or-later"}
+authors = [{ name = "Tobias Brox", email = "tobias@redpill-linpro.com" }]
+dependencies = [
+    "icalendar>=6.0",
+    "recurring-ical-events>=3.8.0",
+]
+
+[project.optional-dependencies]
+collation = ["PyICU"]
+dev = [
+    "ruff",
+    "pre-commit",
+    "pytest>=8.0.0,<10.0.0",
+    "PyICU",
+    "deptry>=0.24.0",
+]
 
 [project.urls]
 Repository = "https://github.com/python-caldav/icalendar-searcher"
 Issues = "https://github.com/python-caldav/icalendar-searcher/issues"
-#Documentation = "https://icalendar-searcher.readthedocs.io/"
-#Changelog = "https://github.com/python-caldav/icalendar-searcher/master/CHANGELOG.md"
 
-[tool.poetry]
-name = "icalendar-searcher"
-version = "0.0.0"
-description = "Search, filter and sort iCalendar components"
-authors = ["Tobias Brox <tobias@redpill-linpro.com>"]
-readme = "README.md"
-packages = [{include = "icalendar_searcher", from = "src"}]
+[tool.hatch.version]
+source = "vcs"
 
-[tool.poetry.dependencies]
-python = ">=3.10,<4"
-icalendar = ">=6.0"
-recurring-ical-events = ">=3.8.0"
+[tool.hatch.build.hooks.vcs]
+version-file = "src/icalendar_searcher/_version.py"
 
-[tool.poetry.extras]
-collation = ["PyICU"]
-
-[tool.poetry-dynamic-versioning]
-enable = true
-vcs = "git"
-style = "semver"
-pattern = "^v(?P<base>\\d+\\.\\d+\\.\\d+)"
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
-build-backend = "poetry_dynamic_versioning.backend"
-
-[dependency-groups]
-dev = [
-    "ruff",
-    "pre-commit",
-    "pytest (>=8.0.0,<10.0.0)",
-    "PyICU",
-    "deptry (>=0.24.0); python_version >= '3.10'"
-]
+[tool.hatch.build.targets.wheel]
+packages = ["src/icalendar_searcher"]
 
 [tool.ruff]
 line-length = 100
@@ -61,6 +51,9 @@ ignore = ["E501", "ANN401"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["icalendar_searcher"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.deptry.per_rule_ignores]
 DEP004 = ["icu"]  # PyICU is optional (collation extra), also in dev for testing

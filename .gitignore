@@ -122,3 +122,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+src/icalendar_searcher/_version.py

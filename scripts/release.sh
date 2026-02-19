@@ -74,14 +74,14 @@ git pull --rebase
 
 # Run tests
 echo -e "${GREEN}Running tests...${NC}"
-poetry run pytest || {
+python -m pytest || {
     echo -e "${RED}Tests failed! Aborting release.${NC}"
     exit 1
 }
 
 # Run ruff checks
 echo -e "${GREEN}Running ruff checks...${NC}"
-poetry run ruff check . || {
+python -m ruff check . || {
     echo -e "${RED}Ruff checks failed! Aborting release.${NC}"
     exit 1
 }

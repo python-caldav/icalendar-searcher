@@ -12,7 +12,7 @@ from .searcher import Searcher
 
 __all__ = ["Searcher", "Collation"]
 
-# Version is set by poetry-dynamic-versioning at build time
+# Version is set by hatch-vcs at build time (written to _version.py)
 try:
     from importlib.metadata import version
 

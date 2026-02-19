@@ -13,6 +13,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Required for hatch-vcs to determine version from git tags
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
@@ -20,10 +22,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install poetry
-        poetry install
+      run: pip install -e ".[dev]"
 
     - name: Run Ruff linter
       uses: astral-sh/ruff-action@v3
@@ -31,9 +30,7 @@ jobs:
         args: check .
 
     - name: Check dependencies with deptry
-      run: |
-        poetry run deptry src
+      run: deptry src
 
     - name: Run tests
-      run: |
-        poetry run pytest
+      run: pytest
