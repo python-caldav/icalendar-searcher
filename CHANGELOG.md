@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-02-19
+
+### Fixed
+
+- **`undef` filter for CATEGORIES was broken with icalendar >= 6.x**: `icalendar` 6.x provides a default empty `vCategory` object for the `CATEGORIES` property even when it is not explicitly present in the iCalendar data, making `"categories" in component` always return `True`.  This caused searches like `no_category=True` (or `add_property_filter("categories", ..., operator="undef")`) to incorrectly filter out *all* events instead of only those that actually have categories.  Fixed by checking the computed category set (empty → not defined) rather than the unreliable `in` test.
+
+- **`undef` filter for DTEND was broken for recurring all-day events**: `recurring_ical_events` adds a computed `DTEND = DTSTART + 1 day` to individual occurrences of all-day recurring events, even when the master event does not have an explicit `DTEND`.  This caused searches for events without `DTEND` (e.g. `no_dtend=True`) to incorrectly filter out recurring all-day events.  Fixed by skipping `undef` checks when filtering expanded recurrence occurrences whose master element has already passed the `undef` check.
+
 ## [1.0.3] - 2025-11-30
 
 ### Fixed
