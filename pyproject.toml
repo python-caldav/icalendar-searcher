@@ -57,3 +57,4 @@ testpaths = ["tests"]
 
 [tool.deptry.per_rule_ignores]
 DEP004 = ["icu"]  # PyICU is optional (collation extra), also in dev for testing
+DEP002 = ["ruff", "pre-commit", "pytest", "deptry"]  # dev tools, not imported in source
