@@ -61,6 +61,17 @@ poetry run ruff check . || {
     exit 1
 }
 
+# Verify CHANGELOG has an entry for this version dated today
+TODAY=$(date +%F)
+EXPECTED_HEADER="## [${VERSION}] - ${TODAY}"
+if ! grep -qF "$EXPECTED_HEADER" CHANGELOG.md; then
+    echo -e "${RED}Error: CHANGELOG.md is missing the expected header:${NC}"
+    echo "  ${EXPECTED_HEADER}"
+    echo -e "${RED}Please update CHANGELOG.md before releasing.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✓ CHANGELOG.md contains '${EXPECTED_HEADER}'${NC}"
+
 # Check if tag already exists
 if git rev-parse "$TAG" >/dev/null 2>&1; then
     echo -e "${RED}Error: Tag $TAG already exists${NC}"
