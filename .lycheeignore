@@ -1,0 +1,4 @@
+# gnu.org and fsf.org rate-limit CI runners (returns 429), but these are
+# well-known stable URLs that don't need verification.
+https://www\.gnu\.org/licenses/.*
+https://fsf\.org/
